@@ -130,7 +130,7 @@ export default function WebRTCTestPage() {
 
   const connectSignaling = useCallback(
     (currentRoomId: string) => {
-      const url = `ws://192.168.8.111:3030/signaling`;
+      const url = `wss://v4.backend.notsofar.live/signaling`;
       const ws = new WebSocket(url);
 
       socketRef.current = ws;
