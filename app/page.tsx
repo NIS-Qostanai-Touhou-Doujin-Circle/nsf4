@@ -14,13 +14,11 @@ let config = {
 
 export default function WebRTCTestPage() {
     const [roomId, setRoomId] = useState('test-room');
-    const [localLogs, setLocalLogs] = useState<string[]>([]);
-    const [remoteLogs, setRemoteLogs] = useState<string[]>([]);
+    const [isCameraOn, setIsCameraOn] = useState(true);
+    const [isMicrophoneOn, setIsMicrophoneOn] = useState(true);
 
     const localVideoRef = useRef<HTMLVideoElement>(null);
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
-    const localLogRef = useRef<HTMLDivElement>(null);
-    const remoteLogRef = useRef<HTMLDivElement>(null);
 
     // Using refs for mutable objects that don't need to trigger re-renders on change
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -30,26 +28,12 @@ export default function WebRTCTestPage() {
 
     const logMessage = useCallback((logType: 'local' | 'remote', message: string) => {
         const timestamp = new Date().toLocaleTimeString();
-        const fullMessage = `[${timestamp}] ${message}`;
+        const fullMessage = `[${timestamp}] [${logType.toUpperCase()}] ${message}`;
 
-        if (logType === 'local') {
-            setLocalLogs((prevLogs) => [...prevLogs, fullMessage]);
-        } else {
-            setRemoteLogs((prevLogs) => [...prevLogs, fullMessage]);
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(fullMessage);
         }
     }, []);
-
-    useEffect(() => {
-        if (localLogRef.current) {
-            localLogRef.current.scrollTop = localLogRef.current.scrollHeight;
-        }
-    }, [localLogs]);
-
-    useEffect(() => {
-        if (remoteLogRef.current) {
-            remoteLogRef.current.scrollTop = remoteLogRef.current.scrollHeight;
-        }
-    }, [remoteLogs]);
 
     const setupWebRTC = useCallback(async () => {
         try {
@@ -62,10 +46,6 @@ export default function WebRTCTestPage() {
                 logMessage(
                     'local',
                     'MediaDevices API (getUserMedia) is not available in this browser or context. Ensure you are on HTTPS or localhost.',
-                );
-                logMessage(
-                    'local',
-                    'MediaDevices API (getUserMedia) not available. Ensure you are on HTTPS or localhost.',
                 );
 
                 return false;
@@ -80,6 +60,8 @@ export default function WebRTCTestPage() {
                 localVideoRef.current.srcObject = stream;
             }
             localStreamRef.current = stream;
+            setIsCameraOn(true); // Set initial state for new stream
+            setIsMicrophoneOn(true); // Set initial state for new stream
             logMessage('local', 'Local stream acquired.');
 
             const config = {
@@ -123,7 +105,6 @@ export default function WebRTCTestPage() {
             return true;
         } catch (error: any) {
             logMessage('local', 'Error setting up WebRTC: ' + error.message);
-            logMessage('local', 'WebRTC Setup Error: ' + error.message);
 
             return false;
         }
@@ -250,10 +231,6 @@ export default function WebRTCTestPage() {
         }
         logMessage('local', `Attempting to join room: ${roomId}`);
 
-        // Reset logs for new session
-        setLocalLogs([]);
-        setRemoteLogs([]);
-
         // Close existing connections if any
         if (peerConnectionRef.current) {
             peerConnectionRef.current.close();
@@ -272,6 +249,9 @@ export default function WebRTCTestPage() {
         }
         if (localVideoRef.current) localVideoRef.current.srcObject = null;
         if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+
+        setIsCameraOn(true); // Reset camera state
+        setIsMicrophoneOn(true); // Reset microphone state
 
         const rtcReady = await setupWebRTC();
 
@@ -311,6 +291,33 @@ export default function WebRTCTestPage() {
             }, 2000); // Increased delay slightly
         }
     }, [roomId, setupWebRTC, connectSignaling, logMessage]);
+
+    const toggleCamera = useCallback(() => {
+        if (localStreamRef.current) {
+            const videoTrack = localStreamRef.current.getVideoTracks()[0];
+
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                setIsCameraOn(videoTrack.enabled);
+                logMessage('local', `Camera ${videoTrack.enabled ? 'turned ON' : 'turned OFF'}`);
+            }
+        }
+    }, [logMessage]);
+
+    const toggleMicrophone = useCallback(() => {
+        if (localStreamRef.current) {
+            const audioTrack = localStreamRef.current.getAudioTracks()[0];
+
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                setIsMicrophoneOn(audioTrack.enabled);
+                logMessage(
+                    'local',
+                    `Microphone ${audioTrack.enabled ? 'turned ON' : 'turned OFF'}`,
+                );
+            }
+        }
+    }, [logMessage]);
 
     // Cleanup on component unmount
     useEffect(() => {
@@ -362,13 +369,19 @@ export default function WebRTCTestPage() {
                             playsInline
                             className="w-full h-64 bg-black rounded-md mb-2"
                         />
-                        <div
-                            ref={localLogRef}
-                            className="log h-48 overflow-y-auto bg-gray-100 dark:bg-gray-800 p-2 border border-gray-300 dark:border-gray-700 rounded-md text-xs"
-                        >
-                            {localLogs.map((log, index) => (
-                                <div key={`local-${index}`}>{log}</div>
-                            ))}
+                        <div className="flex gap-2 mt-2 justify-center">
+                            <Button
+                                color={isCameraOn ? 'primary' : 'default'}
+                                onPress={toggleCamera}
+                            >
+                                {isCameraOn ? 'Turn Camera Off' : 'Turn Camera On'}
+                            </Button>
+                            <Button
+                                color={isMicrophoneOn ? 'primary' : 'default'}
+                                onPress={toggleMicrophone}
+                            >
+                                {isMicrophoneOn ? 'Turn Mic Off' : 'Turn Mic On'}
+                            </Button>
                         </div>
                     </CardBody>
                 </Card>
@@ -386,14 +399,6 @@ export default function WebRTCTestPage() {
                         >
                             <track kind="captions" />
                         </video>
-                        <div
-                            ref={remoteLogRef}
-                            className="log h-48 overflow-y-auto bg-gray-100 dark:bg-gray-800 p-2 border border-gray-300 dark:border-gray-700 rounded-md text-xs"
-                        >
-                            {remoteLogs.map((log, index) => (
-                                <div key={`remote-${index}`}>{log}</div>
-                            ))}
-                        </div>
                     </CardBody>
                 </Card>
             </div>
