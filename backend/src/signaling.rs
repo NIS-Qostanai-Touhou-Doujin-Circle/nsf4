@@ -39,18 +39,18 @@ impl SignalingState {
         }
     }
 
-    pub fn leave_room(&mut self, room_id: &str, user_id: &str) {
-        if let Some(users) = self.rooms.get_mut(room_id) {
-            users.retain(|id| id != user_id);
-            if users.is_empty() {
-                self.rooms.remove(room_id);
-            }
-        }
-    }
+    // pub fn leave_room(&mut self, room_id: &str, user_id: &str) {
+    //     if let Some(users) = self.rooms.get_mut(room_id) {
+    //         users.retain(|id| id != user_id);
+    //         if users.is_empty() {
+    //             self.rooms.remove(room_id);
+    //         }
+    //     }
+    // }
 
-    pub fn get_room_users(&self, room_id: &str) -> Vec<String> {
-        self.rooms.get(room_id).cloned().unwrap_or_default()
-    }
+    // pub fn get_room_users(&self, room_id: &str) -> Vec<String> {
+    //     self.rooms.get(room_id).cloned().unwrap_or_default()
+    // }
 }
 
 pub async fn handle_websocket(ws: WebSocket, state: Arc<Mutex<SignalingState>>) {
