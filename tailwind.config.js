@@ -9,11 +9,14 @@ const config = {
   ],
   theme: {
     extend: {
-      
+      fontFamily: {
+        sans: ["var(--font-sans)"],
+        mono: ["var(--font-mono)"],
+      },
     },
   },
   darkMode: "class",
-  plugins: [],
+  plugins: [heroui()],
 }
 
 module.exports = config;
