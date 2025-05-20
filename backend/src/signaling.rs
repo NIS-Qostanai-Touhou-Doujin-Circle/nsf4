@@ -75,26 +75,24 @@ pub async fn handle_websocket(ws: WebSocket, state: Arc<Mutex<SignalingState>>) 
         if let Ok(msg) = result {
             if let Ok(text) = msg.to_str() {
                 let mut json_val = serde_json::from_str::<Value>(text).unwrap();
-                // Add the sender ID to the message
+                // Добавляем sender ID
                 json_val["from"] = Value::String(user_id.clone());
-
-                if let Ok(json_val) = serde_json::from_str::<Value>(text) {
-                    if let Some(msg_type) = json_val.get("type").and_then(|v| v.as_str()) {
-                        match msg_type {
-                            "join" => {
-                                if let Some(room) = json_val.get("room").and_then(|r| r.as_str()) {
-                                    state.lock().unwrap().join_room(room, &user_id);
-                                }
+        
+                if let Some(msg_type) = json_val.get("type").and_then(|v| v.as_str()) {
+                    match msg_type {
+                        "join" => {
+                            if let Some(room) = json_val.get("room").and_then(|r| r.as_str()) {
+                                state.lock().unwrap().join_room(room, &user_id);
                             }
-                            "offer" | "answer" | "candidate" => {
-                                if let Some(room) = json_val.get("room").and_then(|r| r.as_str()) {
-                                    // For room-specific messages
-                                    let msg_text = serde_json::to_string(&json_val).unwrap();
-                                    state.lock().unwrap().broadcast_to_room(room, &user_id, &msg_text);
-                                }
-                            }
-                            _ => {}
                         }
+                        "offer" | "answer" | "candidate" => {
+                            if let Some(room) = json_val.get("room").and_then(|r| r.as_str()) {
+                                // Для сообщений, относящихся к комнате
+                                let msg_text = serde_json::to_string(&json_val).unwrap();
+                                state.lock().unwrap().broadcast_to_room(room, &user_id, &msg_text);
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }

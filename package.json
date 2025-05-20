@@ -8,8 +8,9 @@
     "start": "next start",
     "lint": "eslint --fix",
     "tauri": "tauri",
-    "start-all": "concurrently \"cargo run --manifest-path ./backend/Cargo.toml\" \"pnpm run dev\""
-  },
+    "dev-all": "concurrently \"cargo run --manifest-path ./backend/Cargo.toml\" \"pnpm run dev\"",
+    "start-all": "concurrently \"cargo run --manifest-path ./backend/Cargo.toml\" \"pnpm run start\""
+},
   "dependencies": {
     "@heroui/button": "2.2.19",
     "@heroui/card": "^2.2.18",
