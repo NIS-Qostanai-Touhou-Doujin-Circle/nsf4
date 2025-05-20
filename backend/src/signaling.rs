@@ -5,6 +5,7 @@ use tokio::sync::mpsc;
 use futures_util::{StreamExt, SinkExt};
 use serde_json::Value;
 use uuid::Uuid;
+use crate::webrtc_handler::{create_peer_connection, setup_media_tracks};
 
 pub struct SignalingState {
     pub rooms: HashMap<String, Vec<String>>,
@@ -64,7 +65,7 @@ pub async fn handle_websocket(ws: WebSocket, state: Arc<Mutex<SignalingState>>) 
         state.users.insert(user_id.clone(), tx);
     }
 
-    let state_clone = state.clone();
+    let _state_clone = state.clone();
     tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
             ws_tx.send(msg).await.ok();
@@ -92,6 +93,31 @@ pub async fn handle_websocket(ws: WebSocket, state: Arc<Mutex<SignalingState>>) 
                                     let msg_text = serde_json::to_string(&json_val).unwrap();
                                     state.lock().unwrap().broadcast_to_room(room, &user_id, &msg_text);
                                 }
+                            }
+                            "central_offer" => {
+                                // Новый тип: клиент предлагает установить серверное соединение
+                                // Извлекаем информацию о комнате (если есть)
+                                let room = json_val.get("room")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("default");
+                                // Создаём серверный PeerConnection и подключаем media tracks
+                                let pc = create_peer_connection().await.unwrap();
+                                setup_media_tracks(&pc).await.unwrap();
+
+                                // Здесь надо установить удалённое описание и создать ответ.
+                                // В данной заглушке этот процесс упрощён – вместо реального SDP
+                                // генерируется строка-ответ.
+                                let answer_sdp = "dummy_answer_sdp"; // <-- реальная логика создания SDP здесь
+
+                                let response = serde_json::json!({
+                                    "type": "central_answer",
+                                    "sdp": answer_sdp,
+                                    "room": room,
+                                    "from": "server"
+                                });
+                                let msg_text = serde_json::to_string(&response).unwrap();
+                                state.lock().unwrap().users.get(&user_id)
+                                    .unwrap().send(Message::text(msg_text)).ok();
                             }
                             _ => {}
                         }

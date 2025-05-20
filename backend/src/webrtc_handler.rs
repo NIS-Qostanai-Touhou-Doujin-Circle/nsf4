@@ -44,7 +44,7 @@ pub async fn setup_media_tracks(peer_connection: &RTCPeerConnection) -> Result<(
 
     Ok(())
 }
-
+#[allow(dead_code)]
 pub async fn handle_screen_sharing(peer_connection: &RTCPeerConnection) -> Result<(), webrtc::Error> {
     let screen_track = Arc::new(TrackLocalStaticRTP::new(
         RTCRtpCodecCapability {

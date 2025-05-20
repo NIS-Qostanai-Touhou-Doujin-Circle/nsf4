@@ -11,6 +11,7 @@ export default function WebRTCTestPage() {
     const [isCameraOn, setIsCameraOn] = useState(true);
     const [isMicrophoneOn, setIsMicrophoneOn] = useState(true);
     const [webrtcManager, setWebrtcManager] = useState<WebRTCManager | null>(null);
+    const [connectionMode, setConnectionMode] = useState<'p2p' | 'central'>('p2p');
 
     const localVideoRef = useRef<HTMLVideoElement>(null);
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -34,6 +35,7 @@ export default function WebRTCTestPage() {
                 roomId,
                 process.env.NEXT_PUBLIC_BackendUrl!,
                 logger,
+                connectionMode,
             );
 
             setWebrtcManager(manager);
@@ -41,7 +43,7 @@ export default function WebRTCTestPage() {
             setIsCameraOn(true);
             setIsMicrophoneOn(true);
         }
-    }, [roomId, logger]);
+    }, [roomId, logger, connectionMode]);
 
     const handleLeaveRoom = useCallback(() => {
         if (webrtcManager) {
@@ -65,6 +67,10 @@ export default function WebRTCTestPage() {
             setIsMicrophoneOn((prev) => !prev);
         }
     }, [webrtcManager]);
+
+    const toggleConnectionMode = useCallback(() => {
+        setConnectionMode((prev) => (prev === 'p2p' ? 'central' : 'p2p'));
+    }, []);
 
     useEffect(() => {
         return () => {
@@ -90,6 +96,9 @@ export default function WebRTCTestPage() {
                 </Button>
                 <Button color="danger" onPress={handleLeaveRoom}>
                     Leave Room
+                </Button>
+                <Button color="default" onPress={toggleConnectionMode}>
+                    {connectionMode === 'p2p' ? 'Switch to Client Server' : 'Switch to P2P'}
                 </Button>
             </div>
             <div className="container mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-6xl px-4">
