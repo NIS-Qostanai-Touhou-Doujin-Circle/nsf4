@@ -21,7 +21,7 @@ async fn main() {
 
     let signaling = warp::path("signaling")
         .and(warp::ws())
-        .and(state_filter.clone())
+        .and(state_filter)
         .map(|ws: warp::ws::Ws, state| {
             info!("Новое WebSocket подключение инициировано"); // Лог перед апгрейдом
             ws.on_upgrade(move |socket| {
@@ -29,19 +29,7 @@ async fn main() {
                 handle_websocket(socket, state)
             })
         })
-        .with(cors.clone());
-
-    let central = warp::path("central")
-        .and(warp::ws())
-        .and(state_filter)
-        .map(|ws: warp::ws::Ws, state| {
-            info!("Новое центральное WebSocket подключение инициировано");
-            ws.on_upgrade(move |socket| {
-                info!("Центральное WebSocket соединение установлено");
-                handle_websocket(socket, state)
-            })
-        })
         .with(cors);
 
-    warp::serve(signaling.or(central)).run(([0, 0, 0, 0], 3030)).await;
+    warp::serve(signaling).run(([0, 0, 0, 0], 3030)).await;
 }

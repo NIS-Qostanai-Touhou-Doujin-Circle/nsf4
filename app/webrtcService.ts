@@ -7,7 +7,6 @@ export class WebRTCManager {
     localVideo: HTMLVideoElement;
     remoteVideo: HTMLVideoElement;
     logger: Logger;
-    connectionMode: 'p2p' | 'central';
 
     peerConnection: RTCPeerConnection | null = null;
     socket: WebSocket | null = null;
@@ -20,14 +19,12 @@ export class WebRTCManager {
         roomId: string,
         backendUrl: string,
         logger: Logger,
-        connectionMode: 'p2p' | 'central' = 'p2p',
     ) {
         this.localVideo = localVideo;
         this.remoteVideo = remoteVideo;
         this.roomId = roomId;
         this.backendUrl = backendUrl;
         this.logger = logger;
-        this.connectionMode = connectionMode;
     }
 
     async setupWebRTC(): Promise<boolean> {
@@ -95,53 +92,40 @@ export class WebRTCManager {
     }
 
     connectSignaling() {
-        const endpoint = this.connectionMode === 'central' ? 'central' : 'signaling';
-        const url = `wss://${this.backendUrl}/${endpoint}`;
+        const url = `wss://${this.backendUrl}/signaling`;
         const ws = new WebSocket(url);
 
         this.socket = ws;
 
         ws.onopen = () => {
-            this.logger('local', `Connected to ${this.connectionMode} signaling server`);
-            if (this.connectionMode === 'p2p') {
-                ws.send(
-                    JSON.stringify({
-                        type: 'join',
-                        room: this.roomId,
-                    }),
-                );
-                if (this.peerConnection) {
-                    this.logger('local', 'Creating offer...');
-                    this.peerConnection
-                        .createOffer()
-                        .then((offer) =>
-                            this.peerConnection!.setLocalDescription(offer).then(() => {
-                                ws.send(
-                                    JSON.stringify({
-                                        type: 'offer',
-                                        offer: offer,
-                                        room: this.roomId,
-                                    }),
-                                );
-                                this.logger('local', 'Offer sent.');
-                            }),
-                        )
-                        .catch((error: any) => {
-                            this.logger(
-                                'local',
-                                'Error creating or sending offer: ' + error.message,
+            this.logger('local', 'Connected to signaling server');
+            ws.send(
+                JSON.stringify({
+                    type: 'join',
+                    room: this.roomId,
+                }),
+            );
+            this.logger('local', `Sent join request for room: ${this.roomId}`);
+
+            if (this.peerConnection) {
+                this.logger('local', 'Creating offer...');
+                this.peerConnection
+                    .createOffer()
+                    .then((offer) => {
+                        return this.peerConnection!.setLocalDescription(offer).then(() => {
+                            ws.send(
+                                JSON.stringify({
+                                    type: 'offer',
+                                    offer: offer,
+                                    room: this.roomId,
+                                }),
                             );
+                            this.logger('local', 'Offer sent.');
                         });
-                }
-            } else {
-                // central mode
-                ws.send(
-                    JSON.stringify({
-                        type: 'central_offer',
-                        room: this.roomId,
-                    }),
-                );
-                this.logger('local', 'Central offer sent.');
+                    })
+                    .catch((error: any) => {
+                        this.logger('local', 'Error creating or sending offer: ' + error.message);
+                    });
             }
         };
 
@@ -150,6 +134,7 @@ export class WebRTCManager {
                 const message = JSON.parse(event.data as string);
 
                 this.logger('local', `Received message: ${message.type}`);
+
                 if (!this.peerConnection) {
                     this.logger('local', 'PeerConnection not initialized. Ignoring message.');
 
@@ -200,13 +185,6 @@ export class WebRTCManager {
                             this.logger('local', `Adding ICE candidate from ${message.from}`);
                             await pc.addIceCandidate(new RTCIceCandidate(message.candidate));
                         }
-                        break;
-
-                    case 'central_answer':
-                        this.logger('local', `Processing central answer`);
-                        await pc.setRemoteDescription(
-                            new RTCSessionDescription({ type: 'answer', sdp: message.sdp }),
-                        );
                         break;
 
                     default:
