@@ -1,0 +1,282 @@
+# WebRTC Video Conferencing Backend Documentation
+
+This document provides information for front-end developers on how to integrate with our Rust-based WebRTC video conferencing backend.
+
+## Overview
+
+The backend provides APIs and WebSocket connections to support:
+
+- Room creation and management
+- User join requests and approval flows
+- Real-time WebRTC signaling
+- Media state synchronization (camera/mic status)
+
+## API Endpoints
+
+### Create Room
+
+```plaintext
+POST /rooms/create
+```
+
+**Request Body:**
+
+```json
+{
+  "room_id": "unique-room-id",
+  "creator_id": "user-id-of-creator"
+}
+```
+
+**Response:**
+
+RoomResponse
+
+ with room details
+
+### Request to Join Room
+
+```plaintext
+POST /rooms/join
+```
+
+**Request Body:**
+
+JoinRoomRequest
+
+```json
+{
+  "room_id": "room-id",
+  "user_id": "user-id-requesting-to-join",
+  "display_name": "User's Display Name"
+}
+```
+
+**Response:**
+
+GeneralMessageResponse
+
+ with status
+
+### Update Media Status
+
+```plaintext
+POST /rooms/media_status
+```
+
+**Request Body:**
+
+MediaStateUpdateRequest
+
+```json
+{
+  "room_id": "room-id",
+  "user_id": "user-id",
+  "camera_on": true,
+  "mic_on": false
+}
+```
+
+**Response:**
+
+MediaStateUpdateResponse
+
+ with updated status
+
+### Leave Room
+
+```plaintext
+POST /rooms/leave
+```
+
+**Request Body:**
+
+LeaveRoomRequest
+
+```json
+{
+  "room_id": "room-id",
+  "user_id": "user-id-leaving"
+}
+```
+
+**Response:**
+
+GeneralMessageResponse
+
+ with status
+
+### Get Room Information
+
+```plaintext
+POST /rooms/details
+```
+
+**Request Body:**
+
+```json
+{
+  "room_id": "room-id"
+}
+```
+
+**Response:**
+
+RoomResponse
+
+ with room details, participants and pending requests
+
+## WebSocket Connection
+
+Connect to the WebSocket endpoint after being approved to join a room:
+
+```plaintext
+WebSocket: /ws/{room_id}/{user_id}
+```
+
+### WebSocket Message Types
+
+Messages are JSON objects with an `event` field indicating the message type. All WebSocket messages are defined in
+
+WsMessage
+
+.
+
+#### Connection Events
+
+-
+
+Connect
+
+- User connected to room
+-
+
+Disconnect
+
+- User disconnected
+
+#### Join Request Flow
+
+-
+
+JoinRequest
+
+- Sent to room creator when a user requests to join
+-
+
+ApproveJoinRequest
+
+- Sent by room creator to approve a join request
+-
+
+DenyJoinRequest
+
+- Sent by room creator to deny a join request
+-
+
+JoinApproved
+
+- Received by user when approved
+-
+
+JoinDenied
+
+- Received by user when denied
+
+#### Media Status
+
+```json
+{
+  "event": "MediaStatus",
+  "user_id": "user-id",
+  "camera_on": true,
+  "mic_on": false
+}
+```
+
+#### WebRTC Signaling
+
+For peer-to-peer connections, WebRTC signals are passed through the server:
+
+```json
+{
+  "event": "WebRTC",
+  "message": {
+    "type": "Offer",
+    "payload": {
+      "sdp": "SDP string here",
+      "from_user_id": "sender-id",
+      "to_user_id": "recipient-id"
+    }
+  }
+}
+```
+
+Types:
+
+Offer
+
+,
+
+Answer
+
+,
+
+IceCandidate
+
+#### Heartbeat
+
+The server expects periodic ping messages:
+
+```json
+{"event": "Ping"}
+```
+
+The server will respond with:
+
+```json
+{"event": "Pong"}
+```
+
+## Participant States
+
+A participant in a room has the following properties:
+
+- User ID and display name
+- Camera status (on/off)
+- Microphone status (on/off)
+- Connection status
+
+## Room Joining Flow
+
+1. User requests to join a room via `/rooms/join` API
+2. Room creator receives a WebSocket
+
+JoinRequest
+
+ message
+3. Creator sends
+
+ApproveJoinRequest
+
+ or
+
+DenyJoinRequest
+
+ via WebSocket
+4. User receives
+    `JoinApproved`
+    or
+    `JoinDenied`
+5. If approved, user can establish WebSocket connection at `/ws/{room_id}/{user_id}`
+6. All room participants are notified with
+
+Connect
+
+ event
+
+## Implementation Notes
+
+- Maintain WebSocket connection with regular ping messages to prevent timeout
+- Room creator must be online to approve join requests
+- Handle potential disconnections and reconnections gracefully
