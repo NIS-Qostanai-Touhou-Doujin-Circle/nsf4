@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint --fix",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "dev-all": "concurrently \"cargo run --manifest-path ./backend/Cargo.toml\" \"pnpm run dev\"",
+    "start-all": "concurrently \"cargo run --manifest-path ./backend/Cargo.toml\" \"pnpm run start\""
   },
   "dependencies": {
     "@heroui/button": "2.2.19",

@@ -13,7 +13,7 @@ const config = {
     },
   },
   darkMode: "class",
-  plugins: [],
+  plugins: [heroui()],
 }
 
 module.exports = config;

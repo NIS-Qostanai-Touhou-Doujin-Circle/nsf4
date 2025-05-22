@@ -7,6 +7,8 @@ use actix::{Actor, Addr};
 use actix_web::{web, App, HttpServer};
 use std::collections::HashMap;
 use std::sync::Mutex;
+use actix_cors::Cors;
+
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -28,10 +30,17 @@ async fn main() -> std::io::Result<()> {
         app_state: app_state.clone(),
     });
     
-    println!("Starting server at http://127.0.0.1:3030");
+    println!("Starting server at http://127.0.0.1:3031");
     
-    HttpServer::new(move || {
+     HttpServer::new(move || {
+        let cors = Cors::default()
+            .allow_any_origin() // For development; restrict in production!
+            .allow_any_method()
+            .allow_any_header()
+            .supports_credentials();
+
         App::new()
+            .wrap(cors) // Add the CORS middleware here
             .app_data(app_state.clone())
             // Room management endpoints
             .service(api::create_room_handler)
@@ -44,7 +53,7 @@ async fn main() -> std::io::Result<()> {
             // WebSocket endpoint
             .service(ws::websocket_route)
     })
-    .bind("127.0.0.1:3030")?
+    .bind("127.0.0.1:3031")?
     .run()
     .await
 }
