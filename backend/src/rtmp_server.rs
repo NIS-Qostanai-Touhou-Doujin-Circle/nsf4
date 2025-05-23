@@ -2,13 +2,13 @@ use crate::models::{RTMPStream, StreamStatus, StreamMetadata, AppState};
 use chrono::Utc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use uuid::Uuid;
-use log::{info, error, warn}; // Added
 use tokio::sync::mpsc;
+use uuid::Uuid;
+use log::{info, error, warn};
 
 pub struct RTMPServer {
     app_state: AppState,
-    stream_data_tx: mpsc::Sender<(String, Vec<u8>)>, // новый канал
+    stream_data_tx: mpsc::Sender<(String, Vec<u8>)>,
 }
 
 impl RTMPServer {
@@ -19,12 +19,12 @@ impl RTMPServer {
     pub async fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
         let listener = TcpListener::bind(format!("0.0.0.0:{}", self.app_state.config.rtmp_port)).await?;
         info!("RTMP server listening on port {}", self.app_state.config.rtmp_port);
-
+    
         loop {
             let (socket, addr) = listener.accept().await?;
             let app_state = self.app_state.clone();
             let stream_data_tx = self.stream_data_tx.clone();
-            
+    
             tokio::spawn(async move {
                 if let Err(e) = handle_rtmp_connection(socket, addr.to_string(), app_state, stream_data_tx).await {
                     error!("Error handling RTMP connection from {}: {}", addr, e);
@@ -38,12 +38,12 @@ async fn handle_rtmp_connection(
     mut socket: TcpStream,
     client_ip: String,
     app_state: AppState,
-    stream_data_tx: mpsc::Sender<(String, Vec<u8>)>, // передаём канал
+    stream_data_tx: mpsc::Sender<(String, Vec<u8>)>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     info!("New RTMP connection from: {}", client_ip);
     let mut buffer = [0; 1024];
-    let mut current_key: Option<String> = None;
-    
+    let mut current_stream_key: Option<String> = None;
+
     // RTMP handshake
     perform_handshake(&mut socket).await?;
     
@@ -54,18 +54,25 @@ async fn handle_rtmp_connection(
             info!("RTMP client {} disconnected.", client_ip);
             break;
         }
-        
-        if let Some(key) = &current_key {
-            let _ = stream_data_tx.send((key.clone(), buffer[..n].to_vec())).await;
+    
+        // If this is video/audio data and we have a stream key
+        if let Some(ref stream_key) = current_stream_key {
+            // Send data to RTSP server
+            if let Err(e) = stream_data_tx.send((stream_key.clone(), buffer[..n].to_vec())).await {
+                error!("Failed to send stream data to RTSP server: {}", e);
+            }
         }
-        
+
         // Parse RTMP message and handle accordingly
         if let Some(rtmp_message) = parse_rtmp_message(&buffer[..n]) {
             info!("RTMP message from {}: {:?}", client_ip, rtmp_message);
-            handle_rtmp_message(rtmp_message, &client_ip, &app_state, &mut socket).await?;
-            if let Some(RTMPMessage::Publish { stream_key }) = parse_rtmp_message(&buffer[..n]) {
-                current_key = Some(stream_key.clone());
+            
+            // Save stream_key for later use
+            if let RTMPMessage::Publish { ref stream_key } = rtmp_message {
+                current_stream_key = Some(stream_key.clone());
             }
+            
+            handle_rtmp_message(rtmp_message, &client_ip, &app_state, &mut socket).await?;
         } else {
             warn!("Failed to parse RTMP message from {} (data length: {})", client_ip, n);
         }
@@ -78,7 +85,7 @@ async fn perform_handshake(socket: &mut TcpStream) -> Result<(), Box<dyn std::er
     // Simplified RTMP handshake
     let mut c0c1 = [0u8; 1537];
     socket.read_exact(&mut c0c1).await?;
-    
+
     // Send S0, S1, S2
     let s0 = [3u8]; // RTMP version 3
     let mut s1 = [0u8; 1536];
@@ -118,7 +125,7 @@ fn parse_rtmp_message(data: &[u8]) -> Option<RTMPMessage> {
     if data.len() < 12 {
         return None;
     }
-    
+
     let message_type = data[11];
     
     match message_type {
@@ -150,12 +157,12 @@ async fn handle_rtmp_message(
         }
         RTMPMessage::Publish { stream_key } => {
             info!("RTMP Publish from {} with key: {}", client_ip, stream_key);
-            
+
             let stream_id = Uuid::new_v4().to_string();
             let rtmp_stream = RTMPStream {
                 id: stream_id.clone(),
                 name: format!("Stream_{}", stream_key),
-                url: format!("rtmp://0.0.0.0:1935/live/{}", stream_key),
+                url: format!("rtmp://127.0.0.1:1935/live/{}", stream_key),
                 stream_key: stream_key.clone(),
                 status: StreamStatus {
                     is_live: true,
@@ -181,11 +188,11 @@ async fn handle_rtmp_message(
                 publisher_ip: Some(client_ip.to_string()),
                 auth_token: None,
             };
-            
+    
             // Add stream to manager
             if let Ok(mut manager) = app_state.stream_manager.lock() {
                 manager.add_rtmp_stream(rtmp_stream);
-                
+    
                 // Create corresponding RTSP stream
                 let rtsp_stream_id = Uuid::new_v4().to_string();
                 let rtsp_stream = crate::models::RTSPStream {
@@ -207,11 +214,11 @@ async fn handle_rtmp_message(
                     mount_point: format!("/live/{}", stream_key),
                     allowed_ips: vec![],
                 };
-                
+    
                 manager.add_rtsp_stream(rtsp_stream);
                 info!("Created RTSP stream for RTMP key: {}", stream_key);
             }
-            
+    
             send_publish_result(socket, true).await?;
         }
         RTMPMessage::Play { stream_name } => {
@@ -220,7 +227,7 @@ async fn handle_rtmp_message(
         }
         RTMPMessage::DeleteStream { stream_id } => {
             info!("RTMP Delete stream: {} requested by {}", stream_id, client_ip);
-            
+    
             // Remove stream from manager
             if let Ok(mut manager) = app_state.stream_manager.lock() {
                 manager.rtmp_streams.remove(&stream_id);
@@ -238,7 +245,7 @@ async fn send_connect_result(socket: &mut TcpStream, success: bool) -> Result<()
     } else {
         b"_error\x00\x3f\xf0\x00\x00\x00\x00\x00\x00"
     };
-    
+
     socket.write_all(response).await?;
     Ok(())
 }
@@ -249,7 +256,7 @@ async fn send_publish_result(socket: &mut TcpStream, success: bool) -> Result<()
     } else {
         b"onStatus\x00\x00\x00\x00\x00\x00\x00\x00\x01"
     };
-    
+
     socket.write_all(response).await?;
     Ok(())
 }
@@ -260,7 +267,7 @@ async fn send_play_result(socket: &mut TcpStream, success: bool) -> Result<(), B
     } else {
         b"onStatus\x00\x00\x00\x00\x00\x00\x00\x00\x01"
     };
-    
+
     socket.write_all(response).await?;
     Ok(())
 }

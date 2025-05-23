@@ -1,23 +1,30 @@
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use chrono::{DateTime, Utc};
+use serde::{Serialize, Deserialize};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
-// Enhanced metadata for a stream
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StreamMetadata {
-    pub title: String,
-    pub description: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub tags: Vec<String>,
-    pub thumbnail: Option<Vec<u8>>,
-    pub duration: Option<u64>, // in seconds
-    pub language: Option<String>,
-    pub category: Option<String>,
+// Configuration for the application
+#[derive(Clone, Debug)]
+pub struct Config {
+    pub rtmp_port: u16,
+    pub rtsp_port: u16,
+    pub http_port: u16,
+    pub log_level: String,
 }
 
-// Enhanced status of a stream
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            rtmp_port: 1935,
+            rtsp_port: 8554,
+            http_port: 8080,
+            log_level: "info".to_string(),
+        }
+    }
+}
+
+// Stream status information
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StreamStatus {
     pub is_live: bool,
     pub bitrate: u32,
@@ -29,8 +36,22 @@ pub struct StreamStatus {
     pub last_frame_at: Option<DateTime<Utc>>,
 }
 
-// Enhanced input RTMP stream
-#[derive(Debug, Clone, Serialize, Deserialize)]
+// Stream metadata
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct StreamMetadata {
+    pub title: String,
+    pub description: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub tags: Vec<String>,
+    pub thumbnail: Option<String>,
+    pub duration: Option<i64>,
+    pub language: Option<String>,
+    pub category: Option<String>,
+}
+
+// RTMP Stream
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RTMPStream {
     pub id: String,
     pub name: String,
@@ -42,8 +63,8 @@ pub struct RTMPStream {
     pub auth_token: Option<String>,
 }
 
-// Enhanced output RTSP stream
-#[derive(Debug, Clone, Serialize, Deserialize)]
+// RTSP Stream
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RTSPStream {
     pub id: String,
     pub name: String,
@@ -55,46 +76,11 @@ pub struct RTSPStream {
     pub allowed_ips: Vec<String>,
 }
 
-// Stream configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StreamConfig {
-    pub max_viewers: u32,
-    pub auto_record: bool,
-    pub record_path: Option<String>,
-    pub transcode_profiles: Vec<TranscodeProfile>,
-    pub auth_required: bool,
-}
-
-// Transcoding profile
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TranscodeProfile {
-    pub name: String,
-    pub video_bitrate: u32,
-    pub audio_bitrate: u32,
-    pub resolution: String,
-    pub fps: f32,
-    pub codec: String,
-}
-
-// Stream statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StreamStats {
-    pub stream_id: String,
-    pub bytes_sent: u64,
-    pub bytes_received: u64,
-    pub packets_sent: u64,
-    pub packets_received: u64,
-    pub dropped_frames: u32,
-    pub uptime: u64, // in seconds
-}
-
-// Enhanced stream manager
-#[derive(Debug)]
+// Stream Manager for keeping track of active streams
+#[derive(Clone)]
 pub struct StreamManager {
     pub rtmp_streams: HashMap<String, RTMPStream>,
     pub rtsp_streams: HashMap<String, RTSPStream>,
-    pub configs: HashMap<String, StreamConfig>,
-    pub stats: HashMap<String, StreamStats>,
 }
 
 impl StreamManager {
@@ -102,8 +88,6 @@ impl StreamManager {
         Self {
             rtmp_streams: HashMap::new(),
             rtsp_streams: HashMap::new(),
-            configs: HashMap::new(),
-            stats: HashMap::new(),
         }
     }
 
@@ -114,49 +98,20 @@ impl StreamManager {
     pub fn add_rtsp_stream(&mut self, stream: RTSPStream) {
         self.rtsp_streams.insert(stream.id.clone(), stream);
     }
-
-    pub fn get_live_streams(&self) -> Vec<&RTMPStream> {
-        self.rtmp_streams
-            .values()
-            .filter(|stream| stream.status.is_live)
-            .collect()
-    }
-
-    pub fn update_stream_stats(&mut self, stream_id: &str, stats: StreamStats) {
-        self.stats.insert(stream_id.to_string(), stats);
-    }
 }
 
-// Application state for Actix Web
-#[derive(Debug, Clone)]
+// Application state shared across components
+#[derive(Clone)]
 pub struct AppState {
-    pub stream_manager: std::sync::Arc<std::sync::Mutex<StreamManager>>,
-    pub config: ServerConfig,
+    pub config: Config,
+    pub stream_manager: Arc<Mutex<StreamManager>>,
 }
 
-// Server configuration
-#[derive(Debug, Clone, Deserialize)]
-pub struct ServerConfig {
-    pub http_port: u16,
-    pub rtmp_port: u16,
-    pub rtsp_port: u16,
-    pub max_connections: usize,
-    pub auth_enabled: bool,
-    pub recording_enabled: bool,
-    pub recording_path: String,
-}
-
-impl Default for ServerConfig {
-    fn default() -> Self {
+impl AppState {
+    pub fn new(config: Config) -> Self {
         Self {
-            http_port: 8080,
-            rtmp_port: 1935,
-            rtsp_port: 554,
-            max_connections: 1000,
-            auth_enabled: false,
-            recording_enabled: false,
-            recording_path: "./recordings".to_string(),
+            config,
+            stream_manager: Arc::new(Mutex::new(StreamManager::new())),
         }
     }
 }
-

@@ -1,90 +1,68 @@
 mod models;
-mod reciever;
-mod sender;
-mod rtsp_server;  // новый модуль
+mod rtmp_server;
+mod rtsp_server;
+mod config;
+mod http_api;
 
-use actix_web::{web, App, HttpServer, HttpResponse, Result, middleware::Logger as ActixLogger}; // Renamed to avoid conflict
-use actix_cors::Cors;
-use serde::{Serialize};
-use std::sync::{Arc, Mutex};
-use models::{AppState, StreamManager, ServerConfig};
-use reciever::RTMPServer;
-use sender::RTSPServer;
-use log::{info, error}; // Added
-use tokio::sync::mpsc;
+use models::AppState;
+use rtmp_server::RTMPServer;
 use rtsp_server::RTSPServer;
+use tokio::sync::mpsc;
+use log::{info, error, LevelFilter};
+use env_logger::Env;
 
-#[derive(Serialize)]
-pub struct ResponseData {
-    pub status: String,
-    pub message: String,
-}
-
-async fn health_check() -> Result<HttpResponse> {
-    Ok(HttpResponse::Ok().json(ResponseData {
-        status: "ok".to_string(),
-        message: "Server is running".to_string(),
-    }))
-}
-
-fn setup_logger() -> std::result::Result<(), fern::InitError> {
-    fern::Dispatch::new()
-        .format(|out, message, record| {
-            out.finish(format_args!(
-                "{} [{}] [{}] {}",
-                chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-                record.level(),
-                record.target(),
-                message
-            ))
-        })
-        .level(log::LevelFilter::Info) // Set default log level
-        .chain(std::io::stdout())
-        .chain(fern::log_file("app.log")?)
-        .apply()?;
-    Ok(())
-}
-
-#[actix_web::main]
-pub async fn main() -> std::io::Result<()> {
-    if let Err(e) = setup_logger() {
-        eprintln!("Error setting up logger: {}", e); // Fallback if logger setup fails
-    }
-
-    let server_config = ServerConfig::default();
-    let stream_manager = Arc::new(Mutex::new(StreamManager::new()));
-
-    let app_state = AppState {
-        stream_manager: stream_manager.clone(),
-        config: server_config.clone(),
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Initialize logging
+    let config = config::load_config();
+    let log_level = match config.log_level.to_lowercase().as_str() {
+        "debug" => LevelFilter::Debug,
+        "trace" => LevelFilter::Trace,
+        "warn" => LevelFilter::Warn,
+        "error" => LevelFilter::Error,
+        _ => LevelFilter::Info,
     };
-
-    info!("HTTP server listening on port {}", server_config.http_port);
     
-    let (tx, rx) = mpsc::channel::<(String, Vec<u8>)>(1000);
-
-    let rtmp = RTMPServer::new(app_state.clone(), tx);
-    let mut rtsp = RTSPServer::new(app_state.clone());
-
-    // параллельно запускаем
-    tokio::spawn(async move { rtmp.start().await.unwrap() });
-    tokio::spawn(async move { rtsp.start().await });
-
-    // Start HTTP server
-    HttpServer::new(move || {
-        let cors = Cors::default()
-            .allow_any_origin()
-            .allow_any_method()
-            .allow_any_header()
-            .supports_credentials();
-
-        App::new()
-            .app_data(web::Data::new(app_state.clone()))
-            .wrap(cors)
-            .wrap(ActixLogger::default())
-            .route("/health", web::get().to(health_check))
-    })
-    .bind(format!("0.0.0.0:{}", server_config.http_port))?
-    .run()
-    .await
+    env_logger::Builder::from_env(Env::default())
+        .filter_level(log_level)
+        .init();
+    
+    info!("Starting Not So Far v4 streaming server");
+    info!("RTMP port: {}, RTSP port: {}, HTTP port: {}", 
+           config.rtmp_port, config.rtsp_port, config.http_port);
+    
+    // Initialize application state
+    let app_state = AppState::new(config);
+    
+    // Create channel for RTMP -> RTSP data
+    let (stream_data_tx, stream_data_rx) = mpsc::channel::<(String, Vec<u8>)>(1000);
+    
+    // Initialize servers
+    let rtmp_server = RTMPServer::new(app_state.clone(), stream_data_tx);
+    let mut rtsp_server = RTSPServer::new(app_state.clone(), stream_data_rx);
+    
+    // Start HTTP API in a separate task
+    let http_state = app_state.clone();
+    tokio::spawn(async move {
+        if let Err(e) = http_api::start_http_server(http_state).await {
+            error!("HTTP API server error: {}", e);
+        }
+    });
+    
+    // Start both streaming servers
+    info!("Starting RTMP and RTSP servers...");
+    tokio::select! {
+        result = rtmp_server.start() => {
+            if let Err(e) = result {
+                error!("RTMP server error: {}", e);
+            }
+        }
+        result = rtsp_server.start() => {
+            if let Err(e) = result {
+                error!("RTSP server error: {}", e);
+            }
+        }
+    }
+    
+    Ok(())
 }
