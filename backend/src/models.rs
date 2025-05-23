@@ -16,22 +16,6 @@ pub struct StreamMetadata {
     pub category: Option<String>,
 }
 
-impl StreamMetadata {
-    pub fn clone(&self) -> Self {
-        Self {
-            title: self.title.clone(),
-            description: self.description.clone(),
-            created_at: self.created_at,
-            updated_at: self.updated_at,
-            tags: self.tags.clone(),
-            thumbnail: self.thumbnail.clone(),
-            duration: self.duration,
-            language: self.language.clone(),
-            category: self.category.clone(),
-        }
-    }
-}
-
 // Enhanced status of a stream
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StreamStatus {
@@ -45,21 +29,6 @@ pub struct StreamStatus {
     pub last_frame_at: Option<DateTime<Utc>>,
 }
 
-impl StreamStatus {
-    pub fn clone(&self) -> Self {
-        Self {
-            is_live: self.is_live,
-            bitrate: self.bitrate,
-            resolution: self.resolution.clone(),
-            fps: self.fps,
-            codec: self.codec.clone(),
-            viewers: self.viewers,
-            started_at: self.started_at,
-            last_frame_at: self.last_frame_at,
-        }
-    }
-}
-
 // Enhanced input RTMP stream
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RTMPStream {
@@ -71,21 +40,6 @@ pub struct RTMPStream {
     pub metadata: Option<StreamMetadata>,
     pub publisher_ip: Option<String>,
     pub auth_token: Option<String>,
-}
-
-impl RTMPStream {
-    pub fn clone(&self) -> Self {
-        Self {
-            id: self.id.clone(),
-            name: self.name.clone(),
-            url: self.url.clone(),
-            stream_key: self.stream_key.clone(),
-            status: self.status.clone(),
-            metadata: self.metadata.clone(),
-            publisher_ip: self.publisher_ip.clone(),
-            auth_token: self.auth_token.clone(),
-        }
-    }
 }
 
 // Enhanced output RTSP stream
@@ -173,6 +127,13 @@ impl StreamManager {
     }
 }
 
+// Application state for Actix Web
+#[derive(Debug, Clone)]
+pub struct AppState {
+    pub stream_manager: std::sync::Arc<std::sync::Mutex<StreamManager>>,
+    pub config: ServerConfig,
+}
+
 // Server configuration
 #[derive(Debug, Clone, Deserialize)]
 pub struct ServerConfig {
@@ -199,9 +160,3 @@ impl Default for ServerConfig {
     }
 }
 
-// Application state for Actix Web
-#[derive(Debug)]
-pub struct AppState {
-    pub stream_manager: std::sync::Arc<std::sync::Mutex<StreamManager>>,
-    pub config: ServerConfig,
-}
