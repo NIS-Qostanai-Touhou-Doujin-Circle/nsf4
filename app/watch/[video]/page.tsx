@@ -1,14 +1,17 @@
 'use client'
 import { useEffect, useRef } from "react";
+import { useParams } from "next/navigation";
 import Hls from "hls.js";
 
-export default function Page() {
+export default function WatchVideoPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const params = useParams();
+  const videoId = params?.video as string;
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
-    const src = "http://localhost:6210/mystream.m3u8";
+    if (!video || !videoId) return;
+    const src = `http://localhost:6210/${videoId}.m3u8`;
     if (Hls.isSupported()) {
       const hls = new Hls();
       hls.loadSource(src);
@@ -19,7 +22,7 @@ export default function Page() {
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = src;
     }
-  }, []);
+  }, [videoId]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen">
@@ -29,7 +32,7 @@ export default function Page() {
         autoPlay
         style={{ width: "100%", maxWidth: 800 }}
       />
-      <p className="mt-4 text-gray-500">Live HLS Stream</p>
+      <p className="mt-4 text-gray-500">Live HLS Stream: {videoId}</p>
     </div>
   );
 }
