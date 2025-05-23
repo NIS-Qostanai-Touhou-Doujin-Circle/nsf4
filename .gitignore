@@ -14,7 +14,7 @@
 
 # production
 /build
-
+node/temp
 # misc
 .DS_Store
 *.pem

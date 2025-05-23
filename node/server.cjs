@@ -90,13 +90,13 @@ function startFFmpegStream(streamId, resourcePath) {
         const ffmpegArgs = [
             '-i', rtspUrl,
             '-c:v', 'libx264',           // Video codec
-            '-preset', 'ultrafast',      // Fast encoding preset
+            '-preset', 'fast',      // Fast encoding preset
             '-tune', 'zerolatency',      // Low latency tuning
             '-c:a', 'aac',              // Audio codec
             '-ac', '2',                 // Audio channels
             '-b:a', '128k',             // Audio bitrate
             '-f', 'hls',                // Output format
-            '-hls_time', '2',           // Segment duration (2 seconds)
+            '-hls_time', '4',           // Segment duration (4 seconds)
             '-hls_list_size', '10',     // Keep 10 segments in playlist
             '-hls_flags', 'delete_segments+append_list',
             '-hls_segment_filename', segmentPattern,
