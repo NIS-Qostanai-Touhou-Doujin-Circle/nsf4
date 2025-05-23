@@ -4,14 +4,16 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use uuid::Uuid;
 use log::{info, error, warn}; // Added
+use tokio::sync::mpsc;
 
 pub struct RTMPServer {
     app_state: AppState,
+    stream_data_tx: mpsc::Sender<(String, Vec<u8>)>, // новый канал
 }
 
 impl RTMPServer {
-    pub fn new(app_state: AppState) -> Self {
-        Self { app_state }
+    pub fn new(app_state: AppState, stream_data_tx: mpsc::Sender<(String, Vec<u8>)>) -> Self {
+        Self { app_state, stream_data_tx }
     }
 
     pub async fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
@@ -21,9 +23,10 @@ impl RTMPServer {
         loop {
             let (socket, addr) = listener.accept().await?;
             let app_state = self.app_state.clone();
+            let stream_data_tx = self.stream_data_tx.clone();
             
             tokio::spawn(async move {
-                if let Err(e) = handle_rtmp_connection(socket, addr.to_string(), app_state).await {
+                if let Err(e) = handle_rtmp_connection(socket, addr.to_string(), app_state, stream_data_tx).await {
                     error!("Error handling RTMP connection from {}: {}", addr, e);
                 }
             });
@@ -35,9 +38,11 @@ async fn handle_rtmp_connection(
     mut socket: TcpStream,
     client_ip: String,
     app_state: AppState,
+    stream_data_tx: mpsc::Sender<(String, Vec<u8>)>, // передаём канал
 ) -> Result<(), Box<dyn std::error::Error>> {
     info!("New RTMP connection from: {}", client_ip);
     let mut buffer = [0; 1024];
+    let mut current_key: Option<String> = None;
     
     // RTMP handshake
     perform_handshake(&mut socket).await?;
@@ -50,10 +55,17 @@ async fn handle_rtmp_connection(
             break;
         }
         
+        if let Some(key) = &current_key {
+            let _ = stream_data_tx.send((key.clone(), buffer[..n].to_vec())).await;
+        }
+        
         // Parse RTMP message and handle accordingly
         if let Some(rtmp_message) = parse_rtmp_message(&buffer[..n]) {
             info!("RTMP message from {}: {:?}", client_ip, rtmp_message);
             handle_rtmp_message(rtmp_message, &client_ip, &app_state, &mut socket).await?;
+            if let Some(RTMPMessage::Publish { stream_key }) = parse_rtmp_message(&buffer[..n]) {
+                current_key = Some(stream_key.clone());
+            }
         } else {
             warn!("Failed to parse RTMP message from {} (data length: {})", client_ip, n);
         }
@@ -143,7 +155,7 @@ async fn handle_rtmp_message(
             let rtmp_stream = RTMPStream {
                 id: stream_id.clone(),
                 name: format!("Stream_{}", stream_key),
-                url: format!("rtmp://127.0.0.1:1935/live/{}", stream_key),
+                url: format!("rtmp://0.0.0.0:1935/live/{}", stream_key),
                 stream_key: stream_key.clone(),
                 status: StreamStatus {
                     is_live: true,

@@ -55,7 +55,7 @@ impl RTSPServer {
         let rtsp_stream = RTSPStream {
             id: rtsp_stream_id.clone(),
             name: format!("RTSP_{}", rtmp_stream_key),
-            url: format!("rtsp://127.0.0.1:{}{}", self.app_state.config.rtsp_port, mount_point),
+            url: format!("rtsp://0.0.0.0:{}{}", self.app_state.config.rtsp_port, mount_point),
             status: StreamStatus {
                 is_live: true,
                 bitrate: 0,
@@ -339,9 +339,9 @@ fn parse_transport_ports(transport: &str) -> (Option<u16>, Option<u16>) {
 fn create_sdp_description(stream_key: &str) -> String {
     format!(
         "v=0\r\n\
-         o=- 123456789 123456789 IN IP4 127.0.0.1\r\n\
+         o=- 123456789 123456789 IN IP4 0.0.0.0\r\n\
          s=Stream {}\r\n\
-         c=IN IP4 127.0.0.1\r\n\
+         c=IN IP4 0.0.0.0\r\n\
          t=0 0\r\n\
          m=video 0 RTP/AVP 96\r\n\
          a=rtpmap:96 H264/90000\r\n\

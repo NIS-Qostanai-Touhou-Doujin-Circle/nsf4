@@ -1,6 +1,7 @@
 mod models;
 mod reciever;
 mod sender;
+mod rtsp_server;  // новый модуль
 
 use actix_web::{web, App, HttpServer, HttpResponse, Result, middleware::Logger as ActixLogger}; // Renamed to avoid conflict
 use actix_cors::Cors;
@@ -10,6 +11,8 @@ use models::{AppState, StreamManager, ServerConfig};
 use reciever::RTMPServer;
 use sender::RTSPServer;
 use log::{info, error}; // Added
+use tokio::sync::mpsc;
+use rtsp_server::RTSPServer;
 
 #[derive(Serialize)]
 pub struct ResponseData {
@@ -58,23 +61,14 @@ pub async fn main() -> std::io::Result<()> {
 
     info!("HTTP server listening on port {}", server_config.http_port);
     
-    // Initialize RTMP and RTSP servers
-    let rtmp_server = RTMPServer::new(app_state.clone());
-    let rtsp_server = RTSPServer::new(app_state.clone());
+    let (tx, rx) = mpsc::channel::<(String, Vec<u8>)>(1000);
 
-    // Start RTMP and RTSP server
-    tokio::spawn(async move {
-        if let Err(e) = rtmp_server.start().await {
-            error!("RTMP server error: {}", e);
-        }
-    });
+    let rtmp = RTMPServer::new(app_state.clone(), tx);
+    let mut rtsp = RTSPServer::new(app_state.clone());
 
-    // Start RTSP server
-    tokio::spawn(async move {
-        if let Err(e) = rtsp_server.start().await {
-            error!("RTSP server error: {}", e);
-        }
-    });
+    // параллельно запускаем
+    tokio::spawn(async move { rtmp.start().await.unwrap() });
+    tokio::spawn(async move { rtsp.start().await });
 
     // Start HTTP server
     HttpServer::new(move || {
@@ -90,7 +84,7 @@ pub async fn main() -> std::io::Result<()> {
             .wrap(ActixLogger::default())
             .route("/health", web::get().to(health_check))
     })
-    .bind(format!("127.0.0.1:{}", server_config.http_port))?
+    .bind(format!("0.0.0.0:{}", server_config.http_port))?
     .run()
     .await
 }
