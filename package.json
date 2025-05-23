@@ -8,8 +8,10 @@
     "start": "next start",
     "lint": "eslint --fix",
     "tauri": "tauri",
-    "dev-all": "concurrently \"cargo run --manifest-path ./backend/Cargo.toml\" \"pnpm run dev\"",
-    "start-all": "concurrently \"cargo run --manifest-path ./backend/Cargo.toml\" \"pnpm run start\""
+    "node-server": "NODE_ENV=development node node/server.cjs",
+    "dev-all": "concurrently \"cargo run --manifest-path ./backend/Cargo.toml\" \"pnpm run dev\" \"pnpm run node-server\"",
+    "dev-all-but-node": "concurrently \"cargo run --manifest-path ./backend/Cargo.toml\" \"pnpm run dev\"",
+    "start-all": "concurrently \"cargo run --manifest-path ./backend/Cargo.toml\" \"pnpm run start\" \"pnpm run node-server\""
   },
   "dependencies": {
     "@heroui/button": "2.2.19",
@@ -28,7 +30,11 @@
     "@react-aria/visually-hidden": "3.8.22",
     "@tauri-apps/api": "^1.6.0",
     "clsx": "2.1.1",
+    "concurrently": "^9.1.2",
+    "cors": "^2.8.5",
+    "express": "^4.2.0",
     "framer-motion": "11.13.1",
+    "hls.js": "^1.6.2",
     "intl-messageformat": "10.7.16",
     "next": "15.3.1",
     "next-themes": "0.4.6",
