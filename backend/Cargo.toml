@@ -4,19 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-actix = "0.13.5"
-actix-cors = "0.7.1"
-actix-web = "4.11.0"
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.140"
-tokio = { version = "1.45.0", features = ["full"] }
-uuid = { version = "1.0", features = ["v4"] }
-xai = "0.0.0"
-chrono = { version = "0.4", features = ["serde"] }
-log = "0.4"
-env_logger = "0.10"
-gstreamer = "0.20"
-gstreamer-rtsp-server = "0.20"
-tokio-util = "0.7"
-bytes = "1.0"
-
+axum = { version = "0.8.4", features = ["json", "ws"] }
+axum-server = "0.7.2"
+chrono = "0.4.41"
+futures = "0.3.31"
+rml_rtmp = "0.8.0"
+serde = "1.0.219"
+sqlx = { version = "0.8.6", features = ["runtime-tokio-native-tls", "mysql", "chrono", "uuid", "migrate"] }
+tokio = { version = "1.35.0", features = ["full"] }
+tower-http = { version = "0.6.4", features = ["cors"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.17", features = ["env-filter", "fmt"] }
+uuid = { version = "1.17.0", features = ["v4"] }
+websocket = "0.27.1"
+toml = "0.7"
