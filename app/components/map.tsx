@@ -5,7 +5,8 @@ import { useEffect } from 'react';
 
 export const DroneMap = () => {
     useEffect(() => {
-        let map : Map | null = null;
+        let map: Map | null = null;
+
         load().then((mapglAPI) => {
             map = new mapglAPI.Map('map-container', {
                 center: [55.31878, 25.23584],
@@ -28,9 +29,11 @@ export const DroneMap = () => {
         </div>
     );
 };
+
 const MapWrapper = React.memo(
     () => {
-        return <div id="map-container" style={{ width: '100%', height: '100%' }}></div>;
+        return <div id="map-container" style={{ width: '100%', height: '100%' }} />;
     },
     () => true,
 );
+MapWrapper.displayName = 'MapWrapper';

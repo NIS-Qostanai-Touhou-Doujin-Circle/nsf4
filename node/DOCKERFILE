@@ -7,4 +7,7 @@ COPY server.cjs ./
 
 RUN npm i
 
-RUN node server.cjs
+# Install ffmpeg using Alpine's package manager
+RUN apk add --no-cache ffmpeg
+
+CMD ["node", "server.cjs"]

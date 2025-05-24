@@ -7,10 +7,20 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.MEDIA_SERVER_PORT || 6210;
 const isDev = process.env.NODE_ENV === 'development';
-const RTSP_HOST = isDev ? process.env.RTSP_HOST : 'example.com';
+const RTSP_HOST = `media:8554`;
 
-// Enable CORS for all routes
-app.use(cors());
+// Enable CORS for all routes with more specific options
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Range', 'Authorization'],
+  exposedHeaders: ['Content-Length', 'Content-Range'],
+  credentials: true,
+  maxAge: 86400 // 24 hours
+}));
+
+// Handle OPTIONS preflight requests explicitly
+app.options('*', cors());
 
 // Store active streams and their associated processes
 const activeStreams = new Map();
