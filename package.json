@@ -6,10 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint --fix",
-    "tauri": "tauri",
-    "node-server": "NODE_ENV=development node node/server.cjs",
-    "run-all": "concurrently \"npm run node-server\" \"npm run star\""
+    "lint": "eslint --fix"
   },
   "dependencies": {
     "@2gis/mapgl": "^1.60.0",

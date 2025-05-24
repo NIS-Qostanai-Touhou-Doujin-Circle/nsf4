@@ -13,11 +13,21 @@ services:
     environment:
       - SERVER_URL=backend
       - MEDIA_SERVER_URL=media
-      - 
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://backend:5123
     restart: unless-stopped
-  
+  conv:
+    container_name: nsf_conv
+    build:
+      context: ./node
+      dockerfile: DOCKERFILE
+    ports:
+      - "6210:6210"
+    environment:
+      - RTSP_HOST=media
+      - NODE_ENV=production
+    restart: always
+
   backend:
     container_name: nsf_backend
     build:
@@ -34,7 +44,8 @@ services:
       - SCREENSHOT_INTERVAL_SECONDS=10
       - SCREENSHOT_QUALITY=80
       - RUST_LOG=info
-    restart: unless-stopped
+    restart: always
+
   media:
     container_name: nsf_media
     image: bluenviron/mediamtx:latest
@@ -44,7 +55,7 @@ services:
     environment:
       - RTMP_PORT=1935
       - RTSP_PORT=8554
-    restart: unless-stopped
+    restart: always
   db:
     container_name: nsf_db
     image: mysql:8.0
@@ -57,7 +68,7 @@ services:
       - MYSQL_PASSWORD=nsf_password
     volumes:
       - mysql_data:/var/lib/mysql
-    restart: unless-stopped
+    restart: always
     command: --default-authentication-plugin=mysql_native_password
 
 volumes:

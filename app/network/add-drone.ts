@@ -1,4 +1,4 @@
-import { apiUrl } from "./consts";
+import { apiUrl } from './consts';
 
 // POST /api/drones - Add a new drone
 export async function addDrone({ url, title }: { url: string; title: string }) {
@@ -9,8 +9,10 @@ export async function addDrone({ url, title }: { url: string; title: string }) {
         },
         body: JSON.stringify({ url, title }),
     });
+
     if (!response.ok) {
         throw new Error('Failed to add drone');
     }
+
     return response.json();
 }
