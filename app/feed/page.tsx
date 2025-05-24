@@ -1,12 +1,13 @@
 'use client';
 
 import { useMemo, useState, useEffect } from "react";
-import { Video} from "./feed-get";
-import fetchFeed from "./mock-data";
-import { useSearch } from "@/components/search-context";
+import { Video, fetchFeed } from "./feed-get";
+// import fetchFeed from "./mock-data";
+import { useSearch } from "@/app/components/search-context";
 import { Card, CardFooter } from '@heroui/card'
 import { Image } from "@heroui/image";
 import { Skeleton } from '@heroui/skeleton';
+import { Link } from "@heroui/link";
 
 export default function Page() {
     const [searchValue, setSearchValue] = useState("");
@@ -47,7 +48,7 @@ export default function Page() {
     return (
         <div className='grid grid-cols-3 gap-x-6 gap-y-3'>
             {filteredVideos.map((video: Video, index) => (
-                <Card key={index}>
+                <Card key={index} isPressable as={Link} href={"/watch/" + video.id} className="flex flex-col items-center">
                     <div className="bg-default-100 *:m-auto">
                         <Image 
                             src={video.thumbnail}

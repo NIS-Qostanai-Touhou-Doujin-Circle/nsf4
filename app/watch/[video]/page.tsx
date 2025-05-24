@@ -2,6 +2,7 @@
 import { useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Hls from "hls.js";
+import { Skeleton } from "@heroui/skeleton";
 
 export default function WatchVideoPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -25,14 +26,24 @@ export default function WatchVideoPage() {
   }, [videoId]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
-      <video
-        ref={videoRef}
-        controls
-        autoPlay
-        style={{ width: "100%", maxWidth: 800 }}
-      />
-      <p className="mt-4 text-gray-500">Live HLS Stream: {videoId}</p>
+    <div className="flex flex-col items-center justify-center">
+      <div className="grid grid-cols-[3fr_1fr] gap-4">
+        <div>
+          <video
+            ref={videoRef}
+            controls
+            autoPlay
+            muted
+            className="h-[600px]"
+          />
+          <h1>{videoId}</h1>
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="w-[300px] h-[200px]" />
+          <Skeleton className="w-[300px] h-[200px]" />
+          <Skeleton className="w-[300px] h-[200px]" />
+        </div>
+      </div>
     </div>
   );
 }

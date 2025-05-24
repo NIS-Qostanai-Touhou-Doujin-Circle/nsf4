@@ -1,10 +1,5 @@
-export interface Video {
-    id: string;
-    title: string;
-    /** Base64 encoded string */
-    thumbnail: string;
-    createdAt: string;
-}
+import { Video } from "../types/api";
+
 
 export async function fetchFeed() {
     // Fetch feed data from API

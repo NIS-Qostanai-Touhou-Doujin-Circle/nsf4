@@ -2,7 +2,7 @@
 import { Input } from "@heroui/input";
 import { Kbd } from "@heroui/kbd";
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-import { useSearch } from "@/components/search-context";
+import { useSearch } from "@/app/components/search-context";
 
 export function SearchBar() {
   const { search, setSearch } = useSearch();

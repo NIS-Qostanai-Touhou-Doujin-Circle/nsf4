@@ -7,7 +7,7 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 6210;
 const isDev = process.env.NODE_ENV === 'development';
-const RTSP_HOST = isDev ? 'localhost:8554' : 'example.com';
+const RTSP_HOST = isDev ? '167.99.129.124:8554' : 'example.com';
 
 // Enable CORS for all routes
 app.use(cors());

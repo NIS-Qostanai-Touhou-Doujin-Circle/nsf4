@@ -8,7 +8,7 @@ export default function Page() {
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    const src = "http://localhost:6210/mystream.m3u8";
+    const src = "http://localhost:6210/badapple.m3u8";
     if (Hls.isSupported()) {
       const hls = new Hls();
       hls.loadSource(src);
