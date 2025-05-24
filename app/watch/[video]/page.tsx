@@ -33,7 +33,7 @@ export default function WatchVideoPage() {
         const point = new api.Marker(map, {
             coordinates: mapPoint,
         });
-        setCleanupFunc(() => point.destroy);
+        setCleanupFunc(() => () => {point.destroy();});
     }, [mapPoint, mapContext]);
 
     useEffect(() => {
