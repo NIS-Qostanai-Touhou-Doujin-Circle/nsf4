@@ -1,36 +1,35 @@
-"use client";
+'use client';
 
-import type { ThemeProviderProps } from "next-themes";
+import type { ThemeProviderProps } from 'next-themes';
 
-import * as React from "react";
-import { HeroUIProvider } from "@heroui/system";
-import { useRouter } from "next/navigation";
-import { ThemeProvider as NextThemesProvider } from "next-themes";
-import { SearchProvider } from "@/app/components/search-context";
-import { ToastProvider } from "@heroui/toast";
+import * as React from 'react';
+import { HeroUIProvider } from '@heroui/system';
+import { useRouter } from 'next/navigation';
+import { ThemeProvider as NextThemesProvider } from 'next-themes';
+import { ToastProvider } from '@heroui/toast';
+
+import { SearchProvider } from '@/app/components/search-context';
 
 export interface ProvidersProps {
-  children: React.ReactNode;
-  themeProps?: ThemeProviderProps;
+    children: React.ReactNode;
+    themeProps?: ThemeProviderProps;
 }
 
-declare module "@react-types/shared" {
-  interface RouterConfig {
-    routerOptions: NonNullable<
-      Parameters<ReturnType<typeof useRouter>["push"]>[1]
-    >;
-  }
+declare module '@react-types/shared' {
+    interface RouterConfig {
+        routerOptions: NonNullable<Parameters<ReturnType<typeof useRouter>['push']>[1]>;
+    }
 }
 
 export function Providers({ children, themeProps }: ProvidersProps) {
-  const router = useRouter();
+    const router = useRouter();
 
-  return (
-    <HeroUIProvider navigate={router.push}>
-      <NextThemesProvider {...themeProps}>
-        <ToastProvider/>
-        <SearchProvider>{children}</SearchProvider>
-      </NextThemesProvider>
-    </HeroUIProvider>
-  );
+    return (
+        <HeroUIProvider navigate={router.push}>
+            <NextThemesProvider {...themeProps}>
+                <ToastProvider />
+                <SearchProvider>{children}</SearchProvider>
+            </NextThemesProvider>
+        </HeroUIProvider>
+    );
 }

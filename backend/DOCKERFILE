@@ -1,11 +1,10 @@
-FROM rust:1.78-slim-bookworm AS builder
+FROM rust:1.87 AS builder
 
 # Create a new empty shell project
 WORKDIR /usr/src/nsf_backend
 RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 
 # Copy over your manifests
-COPY ./Cargo.lock ./Cargo.lock
 COPY ./Cargo.toml ./Cargo.toml
 
 # This is a trick to cache dependencies
