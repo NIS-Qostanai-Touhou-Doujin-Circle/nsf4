@@ -1,8 +1,6 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-
-// import fetchFeed from "./mock-data";
 import { Card, CardFooter } from '@heroui/card';
 import { Image } from '@heroui/image';
 import { Skeleton } from '@heroui/skeleton';
@@ -76,7 +74,9 @@ export default function Page() {
             );
         } else {
             content = (
-                <div className="text-center text-gray-500">No videos found for "{searchValue}"</div>
+                <div className="text-center text-gray-500">
+                    No videos found for &ldquo;{searchValue}&rdquo;
+                </div>
             );
         }
     } else {
