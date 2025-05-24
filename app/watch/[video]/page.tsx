@@ -7,6 +7,7 @@ import { addToast } from '@heroui/toast';
 
 import { Video } from '@/app/types/api';
 import { mediaServerUrl } from '@/app/network/consts';
+import { getVideoData } from '@/app/network/get-video-data';
 
 export default function WatchVideoPage() {
     const videoRef = useRef<HTMLVideoElement>(null);
