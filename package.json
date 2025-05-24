@@ -12,6 +12,7 @@
     "run-all": "concurrently \"npm run node-server\" \"npm run star\""
   },
   "dependencies": {
+    "@2gis/mapgl": "^1.60.0",
     "@heroicons/react": "^2.2.0",
     "@heroui/button": "2.2.19",
     "@heroui/card": "^2.2.18",
