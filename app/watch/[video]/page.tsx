@@ -1,9 +1,8 @@
-'use client'
+"use client";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Hls from "hls.js";
 import { Skeleton } from "@heroui/skeleton";
-import { getVideoData } from "@/app/network/get-video-data";
 import { addToast } from "@heroui/toast";
 import { Video } from "@/app/types/api";
 import { mediaServerUrl } from "@/app/network/consts";
@@ -18,12 +17,15 @@ export default function WatchVideoPage() {
 
   useEffect(() => {
     const video = videoRef.current;
+
     if (!video || !videoId) return;
     const src = `${mediaServerUrl}/${videoId}.m3u8`;
     if (Hls.isSupported()) {
       const hls = new Hls();
+
       hls.loadSource(src);
       hls.attachMedia(video);
+
       return () => {
         hls.destroy();
       };
@@ -42,7 +44,7 @@ export default function WatchVideoPage() {
           description: error.message,
           color: "danger",
           severity: "danger",
-          timeout: 3000
+          timeout: 3000,
         });
         setVideoExists(false);
       });

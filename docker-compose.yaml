@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  frontend:
+    container_name: nsf_frontend
+    build:
+      context: .
+      dockerfile: DOCKERFILE.frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - SERVER_URL=backend
+      - MEDIA_SERVER_URL=media
+      - 
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://backend:5123
+    restart: unless-stopped
+  
+  backend:
+    container_name: nsf_backend
+    build:
+      context: ./backend
+      dockerfile: DOCKERFILE
+    ports:
+      - "5123:5123"
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=mysql://nsf_user:nsf_password@db:3306/nsf
+      - PORT=5123
+      - MEDIA_SERVER_URL=rtmp://media:1935
+      - SCREENSHOT_INTERVAL_SECONDS=10
+      - SCREENSHOT_QUALITY=80
+      - RUST_LOG=info
+    restart: unless-stopped
+  media:
+    container_name: nsf_media
+    image: bluenviron/mediamtx:latest
+    ports:
+      - "1935:1935"
+      - "8554:8554"
+    environment:
+      - RTMP_PORT=1935
+      - RTSP_PORT=8554
+    restart: unless-stopped
+  db:
+    container_name: nsf_db
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_DATABASE=nsf
+      - MYSQL_USER=nsf_user
+      - MYSQL_PASSWORD=nsf_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+
+volumes:
+  mysql_data:
