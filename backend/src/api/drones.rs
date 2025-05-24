@@ -5,7 +5,7 @@ use axum::{
 };
 use std::sync::Arc;
 
-use crate::models::{AddDroneRequest, AddDroneResponse, DeleteDroneResponse};
+use crate::models::{AddDroneRequest, AddDroneResponse, DeleteDroneResponse, Video};
 use crate::services::{self, AppState};
 
 pub async fn add_drone(
@@ -36,4 +36,18 @@ pub async fn delete_drone(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     
     Ok(Json(DeleteDroneResponse { success }))
+}
+
+pub async fn get_drone_by_id(
+    Extension(state): Extension<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<Json<Video>, (StatusCode, String)> {
+    let drone_option = services::get_drone_by_id(state, id)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    
+    match drone_option {
+        Some(drone) => Ok(Json( drone )),
+        None => Err((StatusCode::NOT_FOUND, "Drone not found".to_string())),
+    }
 }

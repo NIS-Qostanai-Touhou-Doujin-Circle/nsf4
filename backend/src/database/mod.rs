@@ -19,6 +19,22 @@ pub async fn get_videos(pool: &Pool<MySql>) -> Result<Vec<Video>, sqlx::Error> {
     Ok(videos)
 }
 
+pub async fn get_video_by_id(pool: &Pool<MySql>, id: String) -> Result<Option<Video>, sqlx::Error> {
+    // Using dynamic query
+    let video = query_as::<_, Video>(
+        r#"
+        SELECT id, url, title, thumbnail, created_at as `createdAt`
+        FROM videos
+        WHERE id = ?
+        "#
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(video)
+}
+
 pub async fn add_video(
     pool: &Pool<MySql>,
     url: String,

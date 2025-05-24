@@ -29,3 +29,10 @@ pub async fn delete_drone(
 ) -> Result<bool, sqlx::Error> {
     database::delete_video(&state.db, id).await
 }
+
+pub async fn get_drone_by_id(
+    state: Arc<AppState>,
+    id: String,
+) -> Result<Option<Video>, sqlx::Error> {
+    database::get_video_by_id(&state.db, id).await
+}

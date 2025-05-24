@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::Extension,
-    routing::{get, post, delete},
+    routing::{get, post},
     Router,
 };
 use sqlx::mysql::MySqlPoolOptions; // Changed from postgres to mysql
@@ -65,13 +65,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
-        .allow_headers(Any);
-    
-    // Build application router
+        .allow_headers(Any);    // Build application router
     let app = Router::new()
         .route("/api/feed", get(feed::get_feed))
         .route("/api/drones", post(drones::add_drone))
-        .route("/api/drones/{id}", delete(drones::delete_drone))  // Updated from :id to {id}
+        .route("/api/drones/{id}", 
+            get(drones::get_drone_by_id)
+            .delete(drones::delete_drone)
+        )
         .route("/ws", get(websocket::handler))
         .layer(Extension(app_state))
         .layer(cors);
