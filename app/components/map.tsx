@@ -3,7 +3,21 @@ import { Map } from '@2gis/mapgl/types';
 import React from 'react';
 import { useEffect } from 'react';
 
+type MapContextType = {map: Map, api: typeof import("/home/omga/Documents/nsf4/node_modules/.pnpm/@2gis+mapgl@1.60.0/node_modules/@2gis/mapgl/types/index")}
+
+export const MapContext = React.createContext<[MapContextType | null, React.Dispatch<React.SetStateAction<MapContextType | null>>]>([null, () => {}]);
+export const MapProvider = (props : { children: React.ReactNode }) => {
+    const [mapInstance, setMapInstance] = React.useState<MapContextType | null>(null);
+
+    return (
+        <MapContext.Provider value={[mapInstance, setMapInstance]}>
+            {props.children}
+        </MapContext.Provider>
+    );
+};
+
 export const DroneMap = () => {
+    const [mapContext, setMapContext] = React.useContext(MapContext);
     useEffect(() => {
         let map: Map | null = null;
 
@@ -13,9 +27,12 @@ export const DroneMap = () => {
                 zoom: 13,
                 key: '481c2446-3a2e-4a14-be93-31f6d12ced05',
             });
+            setMapContext({map, api: mapglAPI});
+        }).catch((error) => {
+            console.error('Error loading map:', error);
         });
 
-        // Удаляем карту при размонтировании компонента
+        // Delete the map instance when the component unmounts
         return () => {
             if (map) {
                 map.destroy();
@@ -35,5 +52,4 @@ const MapWrapper = React.memo(
     },
     () => true,
 );
-
 MapWrapper.displayName = 'MapWrapper';
