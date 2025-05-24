@@ -1,0 +1,28 @@
+# Rust build artifacts
+/target
+**/*.rs.bk
+Cargo.lock
+
+# Environment variables
+.env
+.env.*
+
+# IDE files
+.vscode
+.idea
+
+# Git files
+.git
+.gitignore
+
+# Documentation and scripts that aren't needed in the container
+README.md
+*.md
+*.sh
+
+# Logs
+*.log
+
+# Docker files
+DOCKERFILE
+.dockerignore

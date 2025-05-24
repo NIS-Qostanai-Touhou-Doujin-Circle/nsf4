@@ -1,0 +1,52 @@
+FROM rust:1.78-slim-bookworm AS builder
+
+# Create a new empty shell project
+WORKDIR /usr/src/nsf_backend
+RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
+
+# Copy over your manifests
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./Cargo.toml ./Cargo.toml
+
+# This is a trick to cache dependencies
+# We'll create a dummy main.rs and build the dependencies
+RUN mkdir -p src
+RUN echo "fn main() {println!(\"if you see this, the build broke\")}" > src/main.rs
+RUN cargo build --release
+RUN rm -f src/*.rs
+
+# Now copy in your actual source code
+COPY ./src ./src
+COPY ./migrations ./migrations
+
+# Build for release
+RUN touch src/main.rs
+RUN cargo build --release
+
+# Our production stage
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl-dev \
+    ca-certificates \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy the build artifact from the build stage
+COPY --from=builder /usr/src/nsf_backend/target/release/nsf_backend .
+COPY --from=builder /usr/src/nsf_backend/migrations ./migrations
+
+# Set up environment variables with default values
+ENV DATABASE_URL=""
+ENV PORT="5123"
+ENV MEDIA_SERVER_URL="rtmp://167.99.129.124:1935"
+ENV SCREENSHOT_INTERVAL_SECONDS="10"
+ENV SCREENSHOT_QUALITY="80"
+
+# Expose the port the app runs on
+EXPOSE ${PORT}
+
+# Run the binary
+CMD ["./nsf_backend"]

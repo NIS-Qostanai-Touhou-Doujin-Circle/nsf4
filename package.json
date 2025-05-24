@@ -9,9 +9,7 @@
     "lint": "eslint --fix",
     "tauri": "tauri",
     "node-server": "NODE_ENV=development node node/server.cjs",
-    "dev-all": "concurrently \"cargo run --manifest-path ./backend/Cargo.toml\" \"pnpm run dev\" \"pnpm run node-server\"",
-    "dev-all-but-node": "concurrently \"cargo run --manifest-path ./backend/Cargo.toml\" \"pnpm run dev\"",
-    "start-all": "concurrently \"cargo run --manifest-path ./backend/Cargo.toml\" \"pnpm run start\" \"pnpm run node-server\""
+    "run-all": "concurrently \"npm run node-server\" \"npm run star\""
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

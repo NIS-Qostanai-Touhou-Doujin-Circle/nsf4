@@ -1,10 +1,11 @@
-'use client'
+"use client";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Hls from "hls.js";
 import { Skeleton } from "@heroui/skeleton";
-import { getVideoData } from "@/app/network/get-video-data";
 import { addToast } from "@heroui/toast";
+
+import { getVideoData } from "@/app/network/get-video-data";
 
 export default function WatchVideoPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -15,12 +16,16 @@ export default function WatchVideoPage() {
 
   useEffect(() => {
     const video = videoRef.current;
+
     if (!video || !videoId) return;
     const src = `http://localhost:6210/${videoId}.m3u8`;
+
     if (Hls.isSupported()) {
       const hls = new Hls();
+
       hls.loadSource(src);
       hls.attachMedia(video);
+
       return () => {
         hls.destroy();
       };
@@ -35,13 +40,14 @@ export default function WatchVideoPage() {
         addToast({
           description: JSON.stringify(data, null, 2),
         });
-      }).catch((error) => {
+      })
+      .catch((error) => {
         addToast({
           title: "Error fetching video data",
           description: error.message,
           color: "danger",
           severity: "danger",
-          timeout: 3000
+          timeout: 3000,
         });
         setVideoExists(false);
       });
@@ -51,13 +57,7 @@ export default function WatchVideoPage() {
     <div className="flex flex-col items-center justify-center">
       <div className="grid grid-cols-[3fr_1fr] gap-4">
         <div>
-          <video
-            ref={videoRef}
-            controls
-            autoPlay
-            muted
-            className="h-[600px]"
-          />
+          <video ref={videoRef} autoPlay controls muted className="h-[600px]" />
           <h1>{videoId}</h1>
         </div>
         <div className="space-y-4">
