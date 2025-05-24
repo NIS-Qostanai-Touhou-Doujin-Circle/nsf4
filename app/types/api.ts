@@ -1,6 +1,6 @@
 export interface Video {
     id: string;
-    ip: string;
+    url: string;
     title: string;
     /** Base64 encoded string */
     thumbnail: string;
@@ -12,13 +12,13 @@ export interface Feed {
 }
 
 export interface AddDroneRequest {
-    ip: string;
+    url: string;
     title: string;
 }
 
 export interface AddDroneResponse {
     id: string;
-    ip: string;
+    url: string;
     title: string;
     createdAt: string;
 }
