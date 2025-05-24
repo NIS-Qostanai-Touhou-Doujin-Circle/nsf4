@@ -1,13 +1,15 @@
 'use client';
 
 import { useMemo, useState, useEffect } from "react";
-import { Video, fetchFeed } from "./feed-get";
+import { fetchFeed } from "./feed-get";
 // import fetchFeed from "./mock-data";
 import { useSearch } from "@/app/components/search-context";
 import { Card, CardFooter } from '@heroui/card'
 import { Image } from "@heroui/image";
 import { Skeleton } from '@heroui/skeleton';
 import { Link } from "@heroui/link";
+import { Video } from "../types/api";
+import { addToast } from "@heroui/toast";
 
 export default function Page() {
     const [searchValue, setSearchValue] = useState("");
@@ -26,9 +28,17 @@ export default function Page() {
         const lower = searchValue.toLowerCase();
         return videos.filter((video: Video) => video.title.toLowerCase().includes(lower));
     }, [videos, searchValue]);
-    
     useEffect(() => {
-        fetchFeed().then(setVideos);
+        fetchFeed().then(setVideos).catch((error) => {
+            addToast({
+                title: "Error fetching feed",
+                description: error.message,
+                color: "danger",
+                severity: "danger",
+                timeout: 3000
+            })
+            setVideos([]);
+        });
     }, []);
 
     if (filteredVideos === null) {
