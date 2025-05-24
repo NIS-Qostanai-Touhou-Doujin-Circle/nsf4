@@ -32,17 +32,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Load configuration from environment variables
     let config = config::Config::from_env()?;
+    // Log loaded configuration for debugging
+    tracing::info!(config = ?config, "Configuration loaded");
 
     // Connect to database - changed to MySQL
+    tracing::info!(database_url = %config.database_url, "Connecting to database");
     let db_pool = MySqlPoolOptions::new()
         .max_connections(10)
         .connect(&config.database_url)
         .await?;
     
     // Run migrations
+    tracing::info!("Running database migrations");
     sqlx::migrate!("./migrations")
         .run(&db_pool)
         .await?;
+    tracing::info!("Database migrations completed");
     
     // Make sure migrations table exists before running migrations
     sqlx::query("CREATE TABLE IF NOT EXISTS _sqlx_migrations (
@@ -60,6 +65,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         db: db_pool,
         config: config.clone(),
     });
+    // Initialize RTMP relays for existing drones
+    tracing::info!("Fetching existing drones to initialize RTMP relays");
+    let videos = database::get_videos(&app_state.db).await?;
+    tracing::info!(count = videos.len(), "Existing drones found");
+    for video in videos {
+        let destination = format!("{}/{}", app_state.config.media_server_url, video.id);
+        let added = rtmp::add_rtmp_relay(video.id.clone(), video.url.clone(), destination.clone());
+        tracing::info!(video_id = %video.id, added = %added, destination = %destination, "Initialized RTMP relay for drone");
+    }
     
     // Set up CORS
     let cors = CorsLayer::new()
@@ -76,11 +90,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/ws", get(websocket::handler))
         .layer(Extension(app_state))
         .layer(cors);
+      // Start HTTP server and RTMP server
+    let http_addr = SocketAddr::from(([0, 0, 0, 0], config.port));
     
-    // Start server - fix the bind call by removing the reference
-    let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
-    tracing::info!("Listening on {}", addr);
-    axum_server::bind(addr)  // Removed the & reference
+    tracing::info!("HTTP server listening on {}", http_addr);
+    
+    // Start RTMP server in background
+    let rtmp_addr = SocketAddr::from(([0, 0, 0, 0], config.port + 1));
+    tracing::info!("RTMP server listening on {}", rtmp_addr);
+    tokio::spawn(async move {
+        if let Err(e) = rtmp::start_rtmp_server(rtmp_addr).await {
+            tracing::error!(error = %e, "RTMP server error");
+        }
+    });
+    // Start HTTP server
+    axum_server::bind(http_addr)
         .serve(app.into_make_service())
         .await?;
     
