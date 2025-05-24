@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Hls from "hls.js";
 import { Skeleton } from "@heroui/skeleton";
@@ -8,6 +8,8 @@ export default function WatchVideoPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const params = useParams();
   const videoId = params?.video as string;
+
+  const [videoExists, setVideoExists] = useState(true);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -23,6 +25,14 @@ export default function WatchVideoPage() {
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = src;
     }
+  }, [videoId]);
+
+  useEffect(() => {
+    const checkVideoExists = async () => {
+      await fetch('http://')
+    };
+
+    checkVideoExists();
   }, [videoId]);
 
   return (
