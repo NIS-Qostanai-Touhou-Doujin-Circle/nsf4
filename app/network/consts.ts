@@ -1,3 +1,8 @@
-export const serverUrl = process.env.SERVER_URL || 'http://192.168.0.101:5123';
-export const mediaServerUrl = process.env.MEDIA_SERVER_URL || 'http://localhost:6210';
+export const serverUrl = "http://localhost:5123";
+export const mediaServerUrl = "http://localhost:6210";
 export const apiUrl = `${serverUrl}/api`;
+
+console.log("Server URL:", serverUrl);
+console.log("Media Server URL:", mediaServerUrl);
+console.log("API URL:", apiUrl);
+

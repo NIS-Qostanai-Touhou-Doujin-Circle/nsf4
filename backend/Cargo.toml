@@ -19,5 +19,4 @@ tracing-subscriber = { version = "0.3.17", features = ["env-filter", "fmt"] }
 url = "2.5.4" 
 uuid = { version = "1.17.0", features = ["v4"] }
 websocket = "0.27.1"
-# Base64 crate for encoding thumbnails
 base64 = "0.21"

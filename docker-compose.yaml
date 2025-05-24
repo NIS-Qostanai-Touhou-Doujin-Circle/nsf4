@@ -9,13 +9,13 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - backend
+      - backend    
     environment:
-      - SERVER_URL=backend
-      - MEDIA_SERVER_URL=media
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://backend:5123
-    restart: unless-stopped
+      - NEXT_PUBLIC_MEDIA_SERVER_URL=http://conv:6210
+    restart: unless-stopped  
+    
   conv:
     container_name: nsf_conv
     build:
@@ -25,6 +25,7 @@ services:
       - "6210:6210"
     environment:
       - RTSP_HOST=media
+      - MEDIA_SERVER_PORT=6210
       - NODE_ENV=production
     restart: always
 
@@ -59,17 +60,10 @@ services:
   db:
     container_name: nsf_db
     image: mysql:8.0
-    ports:
-      - "3306:3306"
     environment:
       - MYSQL_ROOT_PASSWORD=root_password
       - MYSQL_DATABASE=nsf
       - MYSQL_USER=nsf_user
       - MYSQL_PASSWORD=nsf_password
-    volumes:
-      - mysql_data:/var/lib/mysql
     restart: always
     command: --default-authentication-plugin=mysql_native_password
-
-volumes:
-  mysql_data:
