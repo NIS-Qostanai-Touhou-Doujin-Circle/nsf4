@@ -55,6 +55,20 @@ export default function Page() {
             </div>
         );
     }
+    if (filteredVideos.length === 0) {
+        if (!searchValue) {
+            return (
+                <div className="text-center text-gray-500">
+                    No videos available. Please check back later.
+                </div>
+            );
+        }
+        return (
+            <div className="text-center text-gray-500">
+                No videos found for "{searchValue}"
+            </div>
+        );
+    }
     return (
         <div className='grid grid-cols-3 gap-x-6 gap-y-3'>
             {filteredVideos.map((video: Video, index) => (
