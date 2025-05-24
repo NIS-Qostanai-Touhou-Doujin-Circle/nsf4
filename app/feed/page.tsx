@@ -45,9 +45,11 @@ export default function Page() {
         });
     }, []);
 
+    let content = null;
+
     if (filteredVideos === null) {
-        return (
-            <div className='grid grid-cols-3 gap-x-6 gap-y-3'>
+        content = (
+            <div className='grid grid-cols-3 gap-x-6 gap-y-6'>
                 {Array.from({ length: 12 }).map((_, i) => (
                     <Card key={i}>
                         <Skeleton className="w-full h-[200px]" />
@@ -58,9 +60,7 @@ export default function Page() {
                 ))}
             </div>
         );
-    }
-    let content = null;
-    if (filteredVideos.length === 0) {
+    } else if (filteredVideos.length === 0) {
         if (!searchValue) {
             content = (
                 <div className="text-center text-gray-500">
@@ -75,7 +75,7 @@ export default function Page() {
             );
         }
     } else {
-        content = (<div className='grid grid-cols-3 gap-x-6 gap-y-3'>
+        content = (<div className='grid grid-cols-3 gap-x-6 gap-y-6'>
                 {filteredVideos.map((video: Video, index) => {
                     const thumbnail = (video.thumbnail ? (<Image
                         src={video.thumbnail}

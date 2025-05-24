@@ -1,9 +1,10 @@
 import { Feed, Video } from "../types/api";
+import { apiUrl } from "./consts";
 
 
 export async function fetchFeed() {
     // Fetch feed data from API
-    const response = await fetch('http://192.168.0.101:5123/api/feed').catch((error) => {
+    const response = await fetch(`${apiUrl}/feed`).catch((error) => {
         console.warn("Error fetching feed data:", error);
         throw new Error("Failed to fetch feed data");
     });

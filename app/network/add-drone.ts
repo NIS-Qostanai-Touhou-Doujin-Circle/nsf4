@@ -1,6 +1,8 @@
+import { apiUrl } from "./consts";
+
 // POST /api/drones - Add a new drone
 export async function addDrone({ url, title }: { url: string; title: string }) {
-    const response = await fetch('http://192.168.0.101:5123/api/drones', {
+    const response = await fetch(`${apiUrl}/drones`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

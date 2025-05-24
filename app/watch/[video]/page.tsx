@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Hls from "hls.js";
 import { Skeleton } from "@heroui/skeleton";
+import { getVideoData } from "@/app/network/get-video-data";
+import { addToast } from "@heroui/toast";
 
 export default function WatchVideoPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -28,11 +30,21 @@ export default function WatchVideoPage() {
   }, [videoId]);
 
   useEffect(() => {
-    const checkVideoExists = async () => {
-      await fetch('http://')
-    };
-
-    checkVideoExists();
+    getVideoData(videoId)
+      .then((data) => {
+        addToast({
+          description: JSON.stringify(data, null, 2),
+        });
+      }).catch((error) => {
+        addToast({
+          title: "Error fetching video data",
+          description: error.message,
+          color: "danger",
+          severity: "danger",
+          timeout: 3000
+        });
+        setVideoExists(false);
+      });
   }, [videoId]);
 
   return (
