@@ -9,6 +9,7 @@ import { addToast } from '@heroui/toast';
 import { Input } from '@heroui/input';
 import { Button } from '@heroui/button';
 import { Divider } from '@heroui/divider';
+import { Spinner } from '@heroui/spinner';
 import { Dropdown, DropdownItem, DropdownMenu, DropdownTrigger } from '@heroui/dropdown';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalProvider, useDisclosure, ModalFooter } from '@heroui/modal';
 
@@ -44,7 +45,7 @@ export default function Page() {
             .then(setVideos)
             .catch((error) => {
                 addToast({
-                    title: 'Error fetching feed',
+                    title: 'Ошибка при получении ленты',
                     description: error.message,
                     color: 'danger',
                     severity: 'danger',
@@ -73,13 +74,13 @@ export default function Page() {
         if (!searchValue) {
             content = (
                 <div className="text-center text-gray-500">
-                    No videos available yet. Please check back later or add a new source.
+                    Видео пока нет. Пожалуйста, зайдите позже или добавьте новый источник.
                 </div>
             );
         } else {
             content = (
                 <div className="text-center text-gray-500">
-                    No videos found for &ldquo;{searchValue}&rdquo;
+                    Видео не найдено по запросу &ldquo;{searchValue}&rdquo;
                 </div>
             );
         }
@@ -90,19 +91,19 @@ export default function Page() {
                     <Playable key={index} video={video} deleteDrone={
                         () => deleteDrone(video.id).then((ans) => {
                             if (ans.success !== true) {
-                                throw new Error(ans.message || 'Failed to delete source');
+                                throw new Error(ans.message || 'Не удалось удалить источник');
                             }
                             setVideos((prevVideos) => prevVideos?.filter((v) => v.id !== video.id) || null);
                             addToast({
-                                title: 'Source deleted successfully',
-                                description: `Source "${video.title}" has been deleted.`,
+                                title: 'Источник успешно удалён',
+                                description: `Источник "${video.title}" был удалён.`,
                                 color: 'success',
                                 severity: 'success',
                                 timeout: 3000,
                             });
                         }).catch((error) => {
                             addToast({
-                                title: 'Error deleting source',
+                                title: 'Ошибка при удалении источника',
                                 description: error.message,
                                 color: 'danger',
                                 severity: 'danger',
@@ -123,18 +124,18 @@ export default function Page() {
                 <div className='flex justify-evenly w-full'>
                     <div className='text-left max-w-xs'>
                         <h1>
-                            Feed
+                            Лента
                         </h1>
                         <div>
                             <p>
-                                Here you can find all sources (drones) that are currently online and broadcasting their video feed.
+                                Здесь вы можете найти все источники (дроны), которые сейчас онлайн и транслируют видео.
                             </p>
                         </div>
                     </div>
                     <div className='text-right space-y-2 mt-24'>
-                        <p>Didn't find what you were looking for?</p>
+                        <p>Не нашли то, что искали?</p>
                         <Button onPress={onOpen} color="primary">
-                            Add New Source
+                            Добавить источник
                         </Button>
                     </div>
                 </div>
@@ -144,7 +145,7 @@ export default function Page() {
                             return (
                                 <>
                                     <ModalHeader className='mt-20'>
-                                        <h1 className='text-center mx-auto'>Add New Source</h1>
+                                        <h1 className='text-center mx-auto'>Добавить источник</h1>
                                     </ModalHeader>
                                     <ModalBody>
                                         <AddDroneForm videos={videos} setVideos={setVideos} onClose={onClose} />
@@ -197,7 +198,7 @@ function Playable({ video, deleteDrone }: { video: Video, deleteDrone: () => Pro
                         deleteDrone();
                     }
                 }}>
-                    <DropdownItem variant='flat' key='delete' color='danger' startContent={<TrashIcon className="size-4 text-danger" />}>Delete</DropdownItem>
+                    <DropdownItem variant='flat' key='delete' color='danger' startContent={<TrashIcon className="size-4 text-danger" />}>Удалить</DropdownItem>
                 </DropdownMenu>
             </Dropdown>
         </div>
@@ -205,6 +206,8 @@ function Playable({ video, deleteDrone }: { video: Video, deleteDrone: () => Pro
 }
 
 function AddDroneForm({ videos, setVideos, onClose }: { videos: Video[] | null, setVideos: React.Dispatch<React.SetStateAction<Video[] | null>>, onClose: () => void }) {
+    const [submitLoading, setSubmitLoading] = useState(false);
+
     return (
         <form
             className="w-full px-8 space-y-2 mx-auto"
@@ -218,8 +221,8 @@ function AddDroneForm({ videos, setVideos, onClose }: { videos: Video[] | null, 
                 // Validate inputs
                 if (ws && !ws.startsWith('ws://') && !ws.startsWith('wss://')) {
                     addToast({
-                        title: 'Error',
-                        description: 'WebSocket URL must start with ws:// or wss://',
+                        title: 'Ошибка',
+                        description: 'WebSocket URL должен начинаться с ws:// или wss://',
                         color: 'danger',
                         severity: 'danger',
                         timeout: 3000,
@@ -228,8 +231,8 @@ function AddDroneForm({ videos, setVideos, onClose }: { videos: Video[] | null, 
                 }
                 if (!url || !title) {
                     addToast({
-                        title: 'Error',
-                        description: 'Please fill in all fields',
+                        title: 'Ошибка',
+                        description: 'Пожалуйста, заполните все поля',
                         color: 'danger',
                         severity: 'danger',
                         timeout: 3000,
@@ -239,8 +242,8 @@ function AddDroneForm({ videos, setVideos, onClose }: { videos: Video[] | null, 
                 }
                 if (!url.startsWith('rtmp://')) {
                     addToast({
-                        title: 'Error',
-                        description: 'URL must start with rtmp://',
+                        title: 'Ошибка',
+                        description: 'URL должен начинаться с rtmp://',
                         color: 'danger',
                         severity: 'danger',
                         timeout: 3000,
@@ -249,14 +252,15 @@ function AddDroneForm({ videos, setVideos, onClose }: { videos: Video[] | null, 
                 }
                 if (!url.includes(':1935')) {
                     addToast({
-                        title: 'Warning',
-                        description: 'URL probably should include port :1935',
+                        title: 'Внимание',
+                        description: 'URL, вероятно, должен содержать порт :1935',
                         color: 'warning',
                         severity: 'warning',
                         timeout: 3000,
                     });
                 }
                 try {
+                    setSubmitLoading(true);
                     let drone = await addDrone({ url, title, ws });
                     const video = {
                         ...drone,
@@ -264,8 +268,8 @@ function AddDroneForm({ videos, setVideos, onClose }: { videos: Video[] | null, 
                     } as Video;
                     setVideos((prevVideos) => [...(prevVideos || []), video]);
                     addToast({
-                        title: 'Success',
-                        description: 'Source added successfully',
+                        title: 'Успех',
+                        description: 'Источник успешно добавлен',
                         color: 'success',
                         severity: 'success',
                         timeout: 3000,
@@ -273,17 +277,18 @@ function AddDroneForm({ videos, setVideos, onClose }: { videos: Video[] | null, 
                     onClose();
                 } catch (error: any) {
                     addToast({
-                        title: 'Error',
+                        title: 'Ошибка',
                         description: error.message,
                         color: 'danger',
                         severity: 'danger',
                         timeout: 3000,
                     });
-
+                } finally {
+                    setSubmitLoading(false);
                 }
             }}
         >
-            <Input fullWidth name="title" label="Source Title (Name)" isRequired />
+            <Input fullWidth name="title" label="Название источника" isRequired />
             <Divider className='mt-4 mb-6' />
             <Input fullWidth name="url" label={
                 <div className='inline-flex items-center gap-1'><SignalIcon className='size-4' /> RTMP URL</div>
@@ -294,7 +299,7 @@ function AddDroneForm({ videos, setVideos, onClose }: { videos: Video[] | null, 
             <Divider className='mt-4 mb-6' />
             <div className='w-full flex justify-center mt-4'>
                 <Button color="primary" type="submit" size='lg' className='inline-block text-center mx-auto w-2/3'>
-                    Add Source
+                    <div className='flex items-center justify-around'>Добавить источник {submitLoading && <Spinner color='white' variant='default'/>}</div>
                 </Button>
             </div>
         </form>
