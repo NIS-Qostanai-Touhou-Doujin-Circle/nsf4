@@ -17,20 +17,25 @@ export const MapProvider = (props : { children: React.ReactNode }) => {
 
 export const DroneMap = () => {
     const [mapContext, setMapContext] = React.useContext(MapContext);
+    const mapInitializedRef = React.useRef(false);
     useEffect(() => {
+        console.log('[DroneMap] useEffect called');
         let map: Map | null = null;
 
+        if (mapInitializedRef.current) {
+            console.log('[DroneMap] Map already initialized, skipping');
+            return;
+        }
+
         load().then((mapglAPI) => {
-            if (mapContext && mapContext.map) {
-                // If the map is already initialized, return early
-                return;
-            }
+            console.log('[DroneMap] Initializing map');
             map = new mapglAPI.Map('map-container', {
                 center: [55.31878, 25.23584],
                 zoom: 13,
                 key: '481c2446-3a2e-4a14-be93-31f6d12ced05',
             });
             setMapContext({map, api: mapglAPI});
+            mapInitializedRef.current = true;
         }).catch((error) => {
             console.error('Error loading map:', error);
         });
@@ -38,11 +43,12 @@ export const DroneMap = () => {
         // Delete the map instance when the component unmounts
         return () => {
             if (map) {
+                console.log('[DroneMap] Destroying map');
                 map.destroy();
-                setMapContext(null);
+                mapInitializedRef.current = false;
             }
         };
-    }, []);
+    }, []); // Only run once on mount
 
     return (
         <div style={{ width: '100%', height: '100%' }}>

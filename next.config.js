@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone', // Enables the standalone output for Docker
-  
+  reactStrictMode: false,
   // Enable CORS by configuring headers
   async headers() {
     return [
