@@ -10,6 +10,7 @@ import { Input } from '@heroui/input';
 import { Button } from '@heroui/button';
 import { Divider } from '@heroui/divider';
 import { Dropdown, DropdownItem, DropdownMenu, DropdownTrigger } from '@heroui/dropdown';
+import { Modal, ModalContent, ModalBody, ModalHeader, ModalProvider, useDisclosure, ModalFooter } from '@heroui/modal';
 
 import { Video } from '../types/api';
 import { fetchFeed } from '../network/feed-get';
@@ -17,7 +18,7 @@ import { fetchFeed } from '../network/feed-get';
 import { addDrone, deleteDrone } from '../network/drone';
 
 import { useSearch } from '@/app/components/search-context';
-import { EllipsisVerticalIcon } from '@heroicons/react/24/outline';
+import { EllipsisVerticalIcon, MapPinIcon, SignalIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 export default function Page() {
     const [searchValue, setSearchValue] = useState('');
@@ -89,19 +90,19 @@ export default function Page() {
                     <Playable key={index} video={video} deleteDrone={
                         () => deleteDrone(video.id).then((ans) => {
                             if (ans.success !== true) {
-                                throw new Error(ans.message || 'Failed to delete drone');
+                                throw new Error(ans.message || 'Failed to delete source');
                             }
                             setVideos((prevVideos) => prevVideos?.filter((v) => v.id !== video.id) || null);
                             addToast({
-                                title: 'Drone deleted successfully',
-                                description: `Drone "${video.title}" has been deleted.`,
+                                title: 'Source deleted successfully',
+                                description: `Source "${video.title}" has been deleted.`,
                                 color: 'success',
                                 severity: 'success',
                                 timeout: 3000,
                             });
                         }).catch((error) => {
                             addToast({
-                                title: 'Error deleting drone',
+                                title: 'Error deleting source',
                                 description: error.message,
                                 color: 'danger',
                                 severity: 'danger',
@@ -114,11 +115,47 @@ export default function Page() {
         );
     }
 
+  const {isOpen, onOpen, onOpenChange} = useDisclosure();
+
     return (
-        <div>
+        <div className='max-w-screen-lg mx-auto'>
             <div className="text-center mx-auto">
-                <h1 className="text-2xl font-bold">Feed</h1>
-                <AddDroneForm videos={videos} setVideos={setVideos}/>
+                <div className='flex justify-evenly w-full'>
+                    <div className='text-left max-w-sm'>
+                        <h1>
+                            Feed
+                        </h1>
+                        <div>
+                            <p>
+                                Here you can find all sources (drones) that are currently online and broadcasting their video feed.
+                            </p>
+                        </div>
+                    </div>
+                    <div className='text-right space-y-2 mt-16'>
+                        <p>Didn't find what you were looking for?</p>
+                        <Button onPress={onOpen} color="primary">
+                            Add New Source
+                        </Button>
+                    </div>
+                </div>
+                <Modal isOpen={isOpen} onOpenChange={onOpenChange} size='md'>
+                    <ModalContent>
+                        {(onClose) => {
+                            return (
+                                <>
+                                    <ModalHeader className='mt-20'>
+                                        <h1 className='text-center mx-auto'>Add New Source</h1>
+                                    </ModalHeader>
+                                    <ModalBody>
+                                        <AddDroneForm videos={videos} setVideos={setVideos} />
+                                    </ModalBody>
+                                    <ModalFooter className='mb-10'>
+                                    </ModalFooter>
+                                </>
+                            );
+                        }}
+                    </ModalContent>
+                </Modal>
             </div>
             <Divider className="my-16" />
             {content}
@@ -160,7 +197,7 @@ function Playable({ video, deleteDrone }: { video: Video, deleteDrone: () => Pro
                         deleteDrone();
                     }
                 }}>
-                    <DropdownItem key='delete'>Delete</DropdownItem>
+                    <DropdownItem variant='flat' key='delete' color='danger' startContent={<TrashIcon className="size-4 text-danger" />}>Delete</DropdownItem>
                 </DropdownMenu>
             </Dropdown>
         </div>
@@ -170,7 +207,7 @@ function Playable({ video, deleteDrone }: { video: Video, deleteDrone: () => Pro
 function AddDroneForm({ videos, setVideos }: { videos: Video[] | null, setVideos: React.Dispatch<React.SetStateAction<Video[] | null>> }) {
     return (
         <form
-            className="w-fit space-y-2 mx-auto"
+            className="w-full px-8 space-y-2 mx-auto"
             method="POST"
             onSubmit={async (e) => {
                 e.preventDefault();
@@ -228,7 +265,7 @@ function AddDroneForm({ videos, setVideos }: { videos: Video[] | null, setVideos
                     setVideos((prevVideos) => [...(prevVideos || []), video]);
                     addToast({
                         title: 'Success',
-                        description: 'Drone added successfully',
+                        description: 'Source added successfully',
                         color: 'success',
                         severity: 'success',
                         timeout: 3000,
@@ -244,12 +281,20 @@ function AddDroneForm({ videos, setVideos }: { videos: Video[] | null, setVideos
                 }
             }}
         >
-            <Input name="url" placeholder="Drone URL" isRequired />
-            <Input name="title" placeholder="Drone Title" isRequired />
-            <Input name="ws" placeholder="Geolocation WebSocket URL (Optional)" />
-            <Button color="primary" type="submit">
-                Add Drone
-            </Button>
+            <Input fullWidth name="title" label="Source Title (Name)" isRequired />
+            <Divider className='mt-4 mb-6' />
+            <Input fullWidth name="url" label={
+                <div className='inline-flex items-center gap-1'><SignalIcon className='size-4' /> RTMP URL</div>
+            } isRequired />
+            <Input fullWidth name="ws" label={
+                <div className='inline-flex items-center gap-1'><MapPinIcon className='size-4'/> WebSocket URL</div>
+            } />
+            <Divider className='mt-4 mb-6' />
+            <div className='w-full flex justify-center mt-4'>
+                <Button color="primary" type="submit" size='lg' className='inline-block text-center mx-auto w-2/3'>
+                    Add Source
+                </Button>
+            </div>
         </form>
     );
 }

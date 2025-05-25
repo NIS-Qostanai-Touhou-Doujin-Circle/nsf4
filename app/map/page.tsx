@@ -1,34 +1,74 @@
 'use client';
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { DroneMap, MapContext } from "../components/map";
 import usePrevious from "../helpers/usePrevious";
+import { Card } from "@heroui/card";
+import { Marker } from "@2gis/mapgl/types";
 
 export default function Page() {
     return (
-        <DronesMap/>
+        <div className="h-2/3">
+            <div className="text-center mb-4">
+                <h1>Global Map</h1>
+                <p>
+                    This map shows the current location of all geolocation sources.
+                    <br/>
+                    You can see the direction of the drone by the rotation of the icon.
+                </p>
+            </div>
+            <Card className="h-full" shadow="lg">
+                <DronesMap/>
+            </Card>
+        </div>
     )
 }
 
-
 function DronesMap() {
-    const [mapContext, setMapContext] = useContext(MapContext);
-    const count = 30;
-    const [points, setPoints] = useState<[number, number][]>(Array.from({ length: count }).map((i, index) => {
+    const [mapContext] = useContext(MapContext);
+    const count = 500;
+    const [points, setPoints] = useState<[number, number][]>(Array.from({ length: count }).map(() => {
         const lat = 55.31878 + (Math.random() - 0.5) * 0.01;
         const lng = 25.23584 + (Math.random() - 0.5) * 0.01;
         return [lat, lng];
-    }))
-    const velocities = Array.from({ length: count }).map(() => [0.0001, 0.0001]);
+    }));
+    const velocities = useRef(Array.from({ length: count }).map(() => [0.0001, 0.0001]));
     const previousPoints = usePrevious(points);
-    const [cleanupFunctions, setCleanupFunctions] = useState<(() => void)[]>([]);
+    const markersRef = useRef<any[]>([]);
+
     useEffect(() => {
-        if (!mapContext || !mapContext.map) return;
+        if (!mapContext || !mapContext.map || !mapContext.api) return;
         const map = mapContext.map;
         const api = mapContext.api;
-        // Clear previous points
-        cleanupFunctions.forEach(fn => fn());
-        setCleanupFunctions([]);
-        const newCleanupFunctions: (() => void)[] = [];
+
+        // Create markers only once
+        if (markersRef.current.length === 0) {
+            markersRef.current = points.map((point, index) => {
+                let rotation = 0;
+                if (previousPoints && previousPoints[index]) {
+                    const dx = point[0] - previousPoints[index][0];
+                    const dy = point[1] - previousPoints[index][1];
+                    rotation = Math.atan2(-dy, dx) * (180 / Math.PI) + 180;
+                }
+                return new api.Marker(map, {
+                    coordinates: point,
+                    icon: "/depa.png",
+                    size: [80, 80],
+                    rotation
+                });
+            });
+        }
+        // Cleanup on unmount
+        return () => {
+            markersRef.current.forEach(marker => marker.destroy && marker.destroy());
+            markersRef.current = [];
+        };
+    // Only run on mount/unmount or if mapContext changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mapContext]);
+
+    useEffect(() => {
+        // Update marker positions and rotations
+        if (!markersRef.current.length) return;
         points.forEach((point, index) => {
             let rotation = 0;
             if (previousPoints && previousPoints[index]) {
@@ -36,36 +76,31 @@ function DronesMap() {
                 const dy = point[1] - previousPoints[index][1];
                 rotation = Math.atan2(-dy, dx) * (180 / Math.PI) + 180;
             }
-            const marker = new api.Marker(map, {
-                coordinates: point,
-                icon: "/depa.png",
-                size: [80, 80],
-                rotation
-            });
-            newCleanupFunctions.push(() => marker.destroy());
+            const marker: Marker = markersRef.current[index];
+            if (marker) {
+                marker.setCoordinates(point);
+                marker.setRotation(rotation);
+            }
         });
-        setCleanupFunctions(newCleanupFunctions);
-    }, [mapContext, points]);
+    }, [points, previousPoints]);
 
     useEffect(() => {
         // Simulate point updates
         const interval = setInterval(() => {
-            velocities.forEach((velocity, index) => {
-                velocities[index][0] += (Math.random() - 0.5) * 0.0001;
-                velocities[index][1] += (Math.random() - 0.5) * 0.0001;
+            velocities.current.forEach((velocity, index) => {
+                velocity[0] += (Math.random() - 0.5) * 0.001;
+                velocity[1] += (Math.random() - 0.5) * 0.001;
             });
             setPoints((prevPoints) => {
                 return prevPoints.map((point, index) => [
-                    point[0] + velocities[index][0],
-                    point[1] + velocities[index][1],
+                    point[0] + velocities.current[index][0],
+                    point[1] + velocities.current[index][1],
                 ]);
             });
-        }, 10);
+        }, 15);
 
         return () => clearInterval(interval);
     }, []);
 
-
     return (<DroneMap />);
-
 }
