@@ -16,7 +16,7 @@ COPY LICENSE ./
 COPY next-env.d.ts ./
 COPY postcss.config.js ./
 COPY tailwind.config.js ./
-COPY package.json ./
+COPY lite-package.json ./package.json
 
 RUN npm i
 # Build Next.js application
