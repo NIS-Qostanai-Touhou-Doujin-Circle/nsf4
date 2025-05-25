@@ -12,14 +12,8 @@ import { DroneMap, MapContext } from '@/app/components/map';
 import { load } from '@2gis/mapgl'
 import { TrashIcon } from '@heroicons/react/24/outline';
 import { Button } from '@heroui/button';
+import usePrevious from '@/app/helpers/usePrevious';
 
-const usePrevious = <T extends any>(value: T): T | undefined => {
-  const ref = useRef<T>();
-  useEffect(() => {
-    ref.current = value;
-  });
-  return ref.current;
-};
 
 
 export default function WatchVideoPage() {
