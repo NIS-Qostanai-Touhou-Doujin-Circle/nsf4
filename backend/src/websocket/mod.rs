@@ -1,8 +1,5 @@
 use axum::{
-    extract::{ws::{Message, WebSocket}, Extension, WebSocketUpgrade, Path},
-    response::IntoResponse,
-    routing::get,
-    Router,
+    extract::{ws::{Message, WebSocket}, Extension, Path, WebSocketUpgrade}, http::StatusCode, response::IntoResponse, routing::get, Json, Router
 };
 use futures::{sink::SinkExt, stream::StreamExt};
 use std::sync::Arc;
@@ -124,6 +121,10 @@ async fn handle_all_drones_socket(socket: WebSocket, state: Arc<AppState>) {
     }
 
     tracing::info!("WebSocket connection closed for all drones endpoint");
+}
+
+pub async fn get_ws_count() -> Result<Json<usize>, (StatusCode, String)> {
+    return Ok(Json(GPS_UPDATES.len()))
 }
 
 // Обработка соединения для конкретного дрона

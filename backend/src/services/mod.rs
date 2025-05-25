@@ -123,6 +123,14 @@ pub async fn get_feed(state: Arc<AppState>) -> Result<Feed, sqlx::Error> {
     Ok(Feed { videos })
 }
 
+pub async fn get_feed_count(state: Arc<AppState>) -> Result<usize, sqlx::Error> {
+    // Log entering service
+    tracing::info!("services::get_feed_count called");
+    let count = database::get_videos_count(&state.db).await?;
+    tracing::info!(count = %count, "services::get_feed_count succeeded");
+    Ok(count)
+}
+
 /// Capture a single screenshot (JPG) from the RTMP stream using ffmpeg
 async fn capture_screenshot(source_url: &str, quality: u32) -> Result<Vec<u8>, Error> {
     // Use ffmpeg to capture one frame as JPG to stdout with specified quality
@@ -170,7 +178,7 @@ pub async fn add_drone(
     let source_url = rtmp_url.clone();
     let destination_url = state.config.media_server_url.clone() + "/" + &video.id;
     // Start relaying RTMP stream
-    let relay_added = crate::rtmp::add_rtmp_relay(video.id.clone(), source_url, destination_url);
+    let relay_added = crate::rtmp::add_rtmp_relay(video.id.clone(), source_url, destination_url, state.db.clone());
     tracing::info!(video_id = %video.id, relay_added = %relay_added, "services::add_drone rtmp::add_rtmp_relay result");
       // Spawn periodic thumbnail capture task
     {
@@ -322,12 +330,12 @@ pub async fn revive_drone_connection(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing::info!(drone_id = %drone_id, "services::revive_drone_connection called");
     
-    // Check if drone is already connected
+    // First, forcefully remove any existing connection (even if it appears active but might be failed)
     {
-        let connection_manager = DRONE_CONNECTIONS.lock().unwrap();
+        let mut connection_manager = DRONE_CONNECTIONS.lock().unwrap();
         if connection_manager.is_connected(&drone_id) {
-            tracing::info!(drone_id = %drone_id, "Drone connection already active");
-            return Ok(());
+            tracing::info!(drone_id = %drone_id, "Removing existing drone connection before revival");
+            connection_manager.remove_connection(&drone_id);
         }
     }
     
@@ -363,6 +371,12 @@ pub async fn revive_drone_connection(
         match drone_client::connect_to_drone(state_clone, drone_id_clone.clone(), ws_url_clone).await {
             Ok(_) => tracing::info!(drone_id = %drone_id_clone, "Drone connection revival completed"),
             Err(e) => tracing::error!(drone_id = %drone_id_clone, error = %e, "Drone connection revival failed"),
+        }
+        
+        // Always remove from connection manager when task finishes
+        {
+            let mut connection_manager = DRONE_CONNECTIONS.lock().unwrap();
+            connection_manager.remove_connection(&drone_id_clone);
         }
     });
     
