@@ -17,6 +17,7 @@ mod models;
 mod services;
 mod websocket;
 mod rtmp;
+mod redis;
 
 use api::{feed, drones};
 
@@ -46,8 +47,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Running database migrations");
     sqlx::migrate!("./migrations")
         .run(&db_pool)
-        .await?;
-    tracing::info!("Database migrations completed");
+        .await?;    tracing::info!("Database migrations completed");
+    
+    // Connect to Redis
+    tracing::info!(redis_url = %config.redis_url, "Connecting to Redis");
+    let redis_client = redis::RedisClient::new(&config.redis_url, config.gps_data_ttl_seconds)
+        .map_err(|e| format!("Failed to connect to Redis: {}", e))?;
+    
+    // Test Redis connection
+    match redis_client.ping().await {
+        Ok(_) => tracing::info!("Redis connection successful"),
+        Err(e) => tracing::error!(error = %e, "Redis connection failed"),
+    }
     
     // Make sure migrations table exists before running migrations
     sqlx::query("CREATE TABLE IF NOT EXISTS _sqlx_migrations (
@@ -60,26 +71,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )")
     .execute(&db_pool)
     .await?;
-    // Create shared application state
+      // Create shared application state
     let app_state = Arc::new(services::AppState {
         db: db_pool,
         config: config.clone(),
+        redis: redis_client,
     });
-    // Initialize RTMP relays for existing drones
+      // Initialize RTMP relays for existing drones
     tracing::info!("Fetching existing drones to initialize RTMP relays");
     let videos = database::get_videos(&app_state.db).await?;
     tracing::info!(count = videos.len(), "Existing drones found");
     for video in videos {
         let destination = format!("{}/{}", app_state.config.media_server_url, video.id);
-        let added = rtmp::add_rtmp_relay(video.id.clone(), video.url.clone(), destination.clone());
-        tracing::info!(video_id = %video.id, added = %added, destination = %destination, "Initialized RTMP relay for drone");
+        let added = rtmp::add_rtmp_relay(video.id.clone(), video.rtmp_url.clone(), destination.clone());
+        tracing::info!(video_id = %video.id, added = %added, destination = %destination, rtmp_url = %video.rtmp_url, "Initialized RTMP relay for drone");
     }
+      // Инициализируем WebSocket подключения к дронам
+    tracing::info!("Starting WebSocket connections to drones");
+    let app_state_for_clients = app_state.clone();
+    tokio::spawn(async move {
+        // Запускаем с небольшой задержкой для уверенности, что сервер полностью поднят
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+        match services::drone_client::start_drone_clients(app_state_for_clients).await {
+            Ok(_) => tracing::info!("Drone clients initialization completed"),
+            Err(e) => tracing::error!(error = %e, "Failed to initialize drone clients"),
+        }
+    });
     
     // Set up CORS
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
-        .allow_headers(Any);    // Build application router
+        .allow_headers(Any);    
+    
+    // Build application router
     let app = Router::new()
         .route("/api/feed", get(feed::get_feed))
         .route("/api/drones", post(drones::add_drone))
@@ -87,7 +113,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             get(drones::get_drone_by_id)
             .delete(drones::delete_drone)
         )
-        .route("/ws", get(websocket::handler))
+        .merge(websocket::router()) // Используем новый WebSocket роутер
         .layer(Extension(app_state))
         .layer(cors);
       // Start HTTP server and RTMP server

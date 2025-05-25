@@ -45,6 +45,7 @@ services:
       - SCREENSHOT_INTERVAL_SECONDS=10
       - SCREENSHOT_QUALITY=80
       - RUST_LOG=info
+      - REDIS_URL=redis://:redis_password@redis:6379/0
     restart: always
 
   media:
@@ -67,3 +68,10 @@ services:
       - MYSQL_PASSWORD=nsf_password
     restart: always
     command: --default-authentication-plugin=mysql_native_password
+
+  redis:
+    container_name: nsf_redis
+    image: redis:latest
+    restart: always
+    environment:
+      - REDIS_PASSWORD=redis_password
