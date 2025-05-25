@@ -1,0 +1,19 @@
+2025-05-25T11:25:06.561987Z  INFO nsf_backend::config: Configuration loaded from environment database_url=mysql://nsf_user:nsf_password@db:3306/nsf port=5123 media_server_url=rtmp://media:1935 screenshot_interval=10 screenshot_quality=80 redis_url=redis://:redis_password@redis:6379/0 gps_data_ttl=3600
+2025-05-25T11:25:06.562000Z  INFO nsf_backend: Configuration loaded config=Config { database_url: "mysql://nsf_user:nsf_password@db:3306/nsf", port: 5123, media_server_url: "rtmp://media:1935", screenshot_interval_seconds: 10, screenshot_quality: 80, redis_url: "redis://:redis_password@redis:6379/0", gps_data_ttl_seconds: 3600 }
+2025-05-25T11:25:06.562006Z  INFO nsf_backend: Connecting to database database_url=mysql://nsf_user:nsf_password@db:3306/nsf
+2025-05-25T11:25:16.863344Z  WARN sqlx::pool::acquire: acquired connection, but time to acquire exceeded slow threshold aquired_after_secs=10.301256063 slow_acquire_threshold_secs=2.0
+2025-05-25T11:25:16.863359Z  INFO nsf_backend: Running database migrations
+2025-05-25T11:25:16.966630Z  INFO nsf_backend: Database migrations completed
+2025-05-25T11:25:16.966647Z  INFO nsf_backend: Connecting to Redis redis_url=redis://:redis_password@redis:6379/0
+2025-05-25T11:25:16.967570Z  INFO nsf_backend: Redis connection successful
+2025-05-25T11:25:16.970124Z  INFO nsf_backend: Fetching existing drones to initialize RTMP relays
+2025-05-25T11:25:16.970130Z  INFO nsf_backend::database: database::get_videos called
+2025-05-25T11:25:17.009514Z  INFO nsf_backend::database: database::get_videos succeeded count=0
+2025-05-25T11:25:17.009528Z  INFO nsf_backend: Existing drones found count=0
+2025-05-25T11:25:17.009534Z  INFO nsf_backend: Starting WebSocket connections to drones
+2025-05-25T11:25:17.009668Z  INFO nsf_backend: HTTP server listening on 0.0.0.0:5123
+2025-05-25T11:25:17.009676Z  INFO nsf_backend: RTMP server listening on 0.0.0.0:5124
+2025-05-25T11:25:17.009720Z  INFO nsf_backend::rtmp: rtmp::start_rtmp_server listening addr=0.0.0.0:5124
+2025-05-25T11:25:19.009898Z  INFO nsf_backend::database: database::get_videos called
+2025-05-25T11:25:19.010705Z  INFO nsf_backend::database: database::get_videos succeeded count=0
+2025-05-25T11:25:19.010717Z  INFO nsf_backend: Drone clients initialization completed

@@ -88,8 +88,8 @@ function DronesMap() {
         // Simulate point updates
         const interval = setInterval(() => {
             velocities.current.forEach((velocity, index) => {
-                velocity[0] += (Math.random() - 0.5) * 0.001;
-                velocity[1] += (Math.random() - 0.5) * 0.001;
+                velocity[0] += (Math.random() - 0.5) * 0.0001;
+                velocity[1] += (Math.random() - 0.5) * 0.0001;
             });
             setPoints((prevPoints) => {
                 return prevPoints.map((point, index) => [
@@ -97,7 +97,7 @@ function DronesMap() {
                     point[1] + velocities.current[index][1],
                 ]);
             });
-        }, 15);
+        }, 32);
 
         return () => clearInterval(interval);
     }, []);
