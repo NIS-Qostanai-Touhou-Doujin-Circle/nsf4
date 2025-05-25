@@ -13,6 +13,7 @@ import { Dropdown, DropdownItem, DropdownMenu, DropdownTrigger } from '@heroui/d
 
 import { Video } from '../types/api';
 import { fetchFeed } from '../network/feed-get';
+// import fetchFeed from '../network/mock-data';
 import { addDrone, deleteDrone } from '../network/drone';
 
 import { useSearch } from '@/app/components/search-context';
@@ -86,7 +87,10 @@ export default function Page() {
             <div className="grid grid-cols-3 gap-x-6 gap-y-6">
                 {filteredVideos.map((video: Video, index) => (
                     <Playable key={index} video={video} deleteDrone={
-                        () => deleteDrone(video.id).then(() => {
+                        () => deleteDrone(video.id).then((ans) => {
+                            if (ans.success !== true) {
+                                throw new Error(ans.message || 'Failed to delete drone');
+                            }
                             setVideos((prevVideos) => prevVideos?.filter((v) => v.id !== video.id) || null);
                             addToast({
                                 title: 'Drone deleted successfully',
@@ -130,30 +134,36 @@ function Playable({ video, deleteDrone }: { video: Video, deleteDrone: () => Pro
     );
 
     return (
-        <Dropdown>
-            <Card
-                as={Link}
-                className="flex flex-col items-center"
-                href={'/watch/' + video.id}
-            >
-                <div className="bg-default-100 *:m-auto">{thumbnail}</div>
-                <CardFooter className="flex flex-col items-center relative">
-                    <b>{video.title}</b>
-                    <DropdownTrigger>
-                        <Button variant="light" radius='full' isIconOnly className="absolute right-2 bottom-2 z-10">
-                            <EllipsisVerticalIcon className="size-4 text-white" />
-                        </Button>
-                    </DropdownTrigger>
-                </CardFooter>
-            </Card>
-            <DropdownMenu onAction={(action) => {
-                if (action === 'delete') {
-                    deleteDrone();
-                }
-            }}>
-                <DropdownItem key='delete'>Delete</DropdownItem>
-            </DropdownMenu>
-        </Dropdown>
+        <div className='relative'>
+            <Dropdown>
+                <>
+                    <Card
+                        as={Link}
+                        href={'/watch/' + video.id}
+                        isPressable
+                    >
+                        <div className="bg-default-100 *:m-auto">{thumbnail}</div>
+                        <CardFooter className="flex flex-col items-center">
+                            <b>{video.title}</b>
+                        </CardFooter>
+                    </Card>
+                    <div className='absolute bottom-2 right-2 radius-full'>
+                        <DropdownTrigger>
+                            <Button variant="light" radius='full' isIconOnly>
+                                <EllipsisVerticalIcon className="size-4 text-white" />
+                            </Button>
+                        </DropdownTrigger>
+                    </div>
+                </>
+                <DropdownMenu onAction={(action) => {
+                    if (action === 'delete') {
+                        deleteDrone();
+                    }
+                }}>
+                    <DropdownItem key='delete'>Delete</DropdownItem>
+                </DropdownMenu>
+            </Dropdown>
+        </div>
     );
 }
 
