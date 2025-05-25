@@ -9,6 +9,7 @@ import { addToast } from '@heroui/toast';
 import { Input } from '@heroui/input';
 import { Button } from '@heroui/button';
 import { Divider } from '@heroui/divider';
+import { Spinner } from '@heroui/spinner';
 import { Dropdown, DropdownItem, DropdownMenu, DropdownTrigger } from '@heroui/dropdown';
 import { Modal, ModalContent, ModalBody, ModalHeader, ModalProvider, useDisclosure, ModalFooter } from '@heroui/modal';
 
@@ -205,6 +206,8 @@ function Playable({ video, deleteDrone }: { video: Video, deleteDrone: () => Pro
 }
 
 function AddDroneForm({ videos, setVideos, onClose }: { videos: Video[] | null, setVideos: React.Dispatch<React.SetStateAction<Video[] | null>>, onClose: () => void }) {
+    const [submitLoading, setSubmitLoading] = useState(false);
+
     return (
         <form
             className="w-full px-8 space-y-2 mx-auto"
@@ -257,6 +260,7 @@ function AddDroneForm({ videos, setVideos, onClose }: { videos: Video[] | null, 
                     });
                 }
                 try {
+                    setSubmitLoading(true);
                     let drone = await addDrone({ url, title, ws });
                     const video = {
                         ...drone,
@@ -279,7 +283,8 @@ function AddDroneForm({ videos, setVideos, onClose }: { videos: Video[] | null, 
                         severity: 'danger',
                         timeout: 3000,
                     });
-
+                } finally {
+                    setSubmitLoading(false);
                 }
             }}
         >
@@ -294,7 +299,7 @@ function AddDroneForm({ videos, setVideos, onClose }: { videos: Video[] | null, 
             <Divider className='mt-4 mb-6' />
             <div className='w-full flex justify-center mt-4'>
                 <Button color="primary" type="submit" size='lg' className='inline-block text-center mx-auto w-2/3'>
-                    Add Source
+                    <div className='flex items-center justify-around'>Add Source {submitLoading && <Spinner color='white' variant='default'/>}</div>
                 </Button>
             </div>
         </form>
