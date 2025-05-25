@@ -6,7 +6,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use sqlx::mysql::MySqlPoolOptions; // Changed from postgres to mysql
+use sqlx::mysql::MySqlPoolOptions;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -23,12 +23,12 @@ use api::{feed, drones};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
-    // Set up file for logging
+    // Инициализация трейсинга
+    // Настройка файла для логирования
     let file_appender = tracing_appender::rolling::daily("logs", "/app/data/logs/application.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
     
-    // Initialize tracing with both console and file output
+    // Инициализация трейсинга с выводом в консоль и файл
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
@@ -47,38 +47,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ))
         .init();
     
-    // Store _guard in application state or keep it in a static to prevent premature flush
-    let _tracing_guard = _guard;
-    // Load configuration from environment variables
+    // Сохраняем _guard в состоянии приложения или держим в статической переменной
+    // для предотвращения преждевременной очистки
+    let _tracing_guard = _guard;    // Загрузка конфигурации из переменных окружения
     let config = config::Config::from_env()?;
-    // Log loaded configuration for debugging
-    tracing::info!(config = ?config, "Configuration loaded");
+    // Логирование загруженной конфигурации для отладки
+    tracing::info!(config = ?config, "Конфигурация загружена");
 
-    // Connect to database - changed to MySQL
-    tracing::info!(database_url = %config.database_url, "Connecting to database");
+    // Подключение к базе данных - изменено на MySQL
+    tracing::info!(database_url = %config.database_url, "Подключение к базе данных");
     let db_pool = MySqlPoolOptions::new()
         .max_connections(10)
         .connect(&config.database_url)
         .await?;
     
-    // Run migrations
-    tracing::info!("Running database migrations");
+    // Запуск миграций
+    tracing::info!("Запуск миграций базы данных");
     sqlx::migrate!("./migrations")
         .run(&db_pool)
-        .await?;    tracing::info!("Database migrations completed");
-    
-    // Connect to Redis
-    tracing::info!(redis_url = %config.redis_url, "Connecting to Redis");
+        .await?;
+    tracing::info!("Миграции базы данных завершены");    
+    // Подключение к Redis
+    tracing::info!(redis_url = %config.redis_url, "Подключение к Redis");
     let redis_client = redis::RedisClient::new(&config.redis_url, config.gps_data_ttl_seconds)
-        .map_err(|e| format!("Failed to connect to Redis: {}", e))?;
+        .map_err(|e| format!("Не удалось подключиться к Redis: {}", e))?;
     
-    // Test Redis connection
+    // Тестирование подключения к Redis
     match redis_client.ping().await {
-        Ok(_) => tracing::info!("Redis connection successful"),
-        Err(e) => tracing::error!(error = %e, "Redis connection failed"),
+        Ok(_) => tracing::info!("Подключение к Redis успешно"),
+        Err(e) => tracing::error!(error = %e, "Подключение к Redis не удалось"),
     }
     
-    // Make sure migrations table exists before running migrations
+    // Убеждаемся, что таблица миграций существует перед запуском миграций
     sqlx::query("CREATE TABLE IF NOT EXISTS _sqlx_migrations (
         version BIGINT PRIMARY KEY,
         description TEXT NOT NULL,
@@ -88,40 +88,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         execution_time BIGINT NOT NULL
     )")
     .execute(&db_pool)
-    .await?;
-      // Create shared application state
+    .await?;      // Создание общего состояния приложения
     let app_state = Arc::new(services::AppState {
         db: db_pool,
         config: config.clone(),
         redis: redis_client,
     });
-      // Initialize RTMP relays for existing drones
-    tracing::info!("Fetching existing drones to initialize RTMP relays");
+      
+    // Инициализация RTMP-релеев для существующих дронов
+    tracing::info!("Получение существующих дронов для инициализации RTMP-релеев");
     let videos = database::get_videos(&app_state.db).await?;
-    tracing::info!(count = videos.len(), "Existing drones found");
+    tracing::info!(count = videos.len(), "Найдены существующие дроны");
+    
     for video in videos {
         let destination = format!("{}/{}", app_state.config.media_server_url, video.id);
         let added = rtmp::add_rtmp_relay(video.id.clone(), video.rtmp_url.clone(), destination.clone(), app_state.db.clone());
-        tracing::info!(video_id = %video.id, added = %added, destination = %destination, rtmp_url = %video.rtmp_url, "Initialized RTMP relay for drone");
-    }
-      // Инициализируем WebSocket подключения к дронам
-    tracing::info!("Starting WebSocket connections to drones");
+        tracing::info!(video_id = %video.id, added = %added, destination = %destination, rtmp_url = %video.rtmp_url, "Инициализирован RTMP-релей для дрона");
+    }      // Инициализируем WebSocket подключения к дронам
+    tracing::info!("Запуск WebSocket подключений к дронам");
     let app_state_for_clients = app_state.clone();
     tokio::spawn(async move {
         // Запускаем с небольшой задержкой для уверенности, что сервер полностью поднят
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
         match services::drone_client::start_drone_clients(app_state_for_clients).await {
-            Ok(_) => tracing::info!("Drone clients initialization completed"),
-            Err(e) => tracing::error!(error = %e, "Failed to initialize drone clients"),
+            Ok(_) => tracing::info!("Инициализация клиентов дронов завершена"),
+            Err(e) => tracing::error!(error = %e, "Не удалось инициализировать клиенты дронов"),
         }
     });
     
-    // Set up CORS
+    // Настройка CORS
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
-        .allow_headers(Any);    // Build application router
+        .allow_headers(Any);    // Построение роутера приложения
     let app = Router::new()
         .route("/api/feed", get(feed::get_feed))
         .route("/api/drones", post(drones::add_drone))
@@ -138,20 +138,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .merge(websocket::router()) // Используем новый WebSocket роутер
         .layer(Extension(app_state.clone()))
         .layer(cors);
-      // Start HTTP server and RTMP server
+      
+    // Запуск HTTP сервера и RTMP сервера
     let http_addr = SocketAddr::from(([0, 0, 0, 0], config.port));
     
-    tracing::info!("HTTP server listening on {}", http_addr);
+    tracing::info!("HTTP сервер слушает на {}", http_addr);
     
-    // Start RTMP server in background
+    // Запуск RTMP сервера в фоновом режиме
     let rtmp_addr = SocketAddr::from(([0, 0, 0, 0], config.port + 1));
-    tracing::info!("RTMP server listening on {}", rtmp_addr);
+    tracing::info!("RTMP сервер слушает на {}", rtmp_addr);
     tokio::spawn(async move {
         if let Err(e) = rtmp::start_rtmp_server(rtmp_addr).await {
-            tracing::error!(error = %e, "RTMP server error");
+            tracing::error!(error = %e, "Ошибка RTMP сервера");
         }
     });
-    // Start HTTP server
+    
+    // Запуск HTTP сервера
     axum_server::bind(http_addr)
         .serve(app.into_make_service())
         .await?;
