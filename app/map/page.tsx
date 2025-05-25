@@ -2,10 +2,23 @@
 import { useContext, useEffect, useState } from "react";
 import { DroneMap, MapContext } from "../components/map";
 import usePrevious from "../helpers/usePrevious";
+import { Card } from "@heroui/card";
 
 export default function Page() {
     return (
-        <DronesMap/>
+        <div className="h-2/3">
+            <div className="text-center mb-4">
+                <h1>Global Map</h1>
+                <p>
+                    This map shows the current location of all geolocation sources.
+                    <br/>
+                    You can see the direction of the drone by the rotation of the icon.
+                </p>
+            </div>
+            <Card className="h-full" shadow="lg">
+                <DronesMap/>
+            </Card>
+        </div>
     )
 }
 
@@ -51,8 +64,8 @@ function DronesMap() {
         // Simulate point updates
         const interval = setInterval(() => {
             velocities.forEach((velocity, index) => {
-                velocities[index][0] += (Math.random() - 0.5) * 0.0001;
-                velocities[index][1] += (Math.random() - 0.5) * 0.0001;
+                velocities[index][0] += (Math.random() - 0.5) * 0.001;
+                velocities[index][1] += (Math.random() - 0.5) * 0.001;
             });
             setPoints((prevPoints) => {
                 return prevPoints.map((point, index) => [
@@ -60,7 +73,7 @@ function DronesMap() {
                     point[1] + velocities[index][1],
                 ]);
             });
-        }, 10);
+        }, 1500);
 
         return () => clearInterval(interval);
     }, []);
