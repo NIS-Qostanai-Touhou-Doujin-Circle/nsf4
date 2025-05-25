@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     let port = if args.len() > 1 { &args[1] } else { "9002" };
     let drone_id = if args.len() > 2 { &args[2] } else { "drone-sim-1" };
-    let addr = format!("127.0.0.1:{}", port);
+    let addr = format!("0.0.0.0:{}", port);
     
     // Базовые координаты (можно изменить для разных локаций)
     let base_latitude = 55.751244; // Москва

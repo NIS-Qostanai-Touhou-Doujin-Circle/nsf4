@@ -68,10 +68,10 @@ services:
       - MYSQL_PASSWORD=nsf_password
     restart: always
     command: --default-authentication-plugin=mysql_native_password
-
   redis:
     container_name: nsf_redis
     image: redis:latest
     restart: always
+    command: redis-server --requirepass redis_password
     environment:
       - REDIS_PASSWORD=redis_password
