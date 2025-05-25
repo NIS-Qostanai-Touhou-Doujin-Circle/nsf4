@@ -73,7 +73,7 @@ export default function Page() {
         if (!searchValue) {
             content = (
                 <div className="text-center text-gray-500">
-                    No videos available. Please check back later.
+                    No videos available yet. Please check back later or add a new source.
                 </div>
             );
         } else {
@@ -121,7 +121,7 @@ export default function Page() {
         <div className='max-w-screen-lg mx-auto'>
             <div className="text-center mx-auto">
                 <div className='flex justify-evenly w-full'>
-                    <div className='text-left max-w-sm'>
+                    <div className='text-left max-w-xs'>
                         <h1>
                             Feed
                         </h1>
@@ -131,7 +131,7 @@ export default function Page() {
                             </p>
                         </div>
                     </div>
-                    <div className='text-right space-y-2 mt-16'>
+                    <div className='text-right space-y-2 mt-24'>
                         <p>Didn't find what you were looking for?</p>
                         <Button onPress={onOpen} color="primary">
                             Add New Source
@@ -147,7 +147,7 @@ export default function Page() {
                                         <h1 className='text-center mx-auto'>Add New Source</h1>
                                     </ModalHeader>
                                     <ModalBody>
-                                        <AddDroneForm videos={videos} setVideos={setVideos} />
+                                        <AddDroneForm videos={videos} setVideos={setVideos} onClose={onClose} />
                                     </ModalBody>
                                     <ModalFooter className='mb-10'>
                                     </ModalFooter>
@@ -165,7 +165,7 @@ export default function Page() {
 
 function Playable({ video, deleteDrone }: { video: Video, deleteDrone: () => Promise<void> }) {
     const thumbnail = video.thumbnail ? (
-        <Image alt={video.title} height={200} radius="none" src={video.thumbnail} />
+        <Image removeWrapper alt={video.title} height={200} radius="none" src={video.thumbnail} className='w-full object-cover'/>
     ) : (
         <Skeleton className="w-full h-[200px]" />
     );
@@ -179,12 +179,12 @@ function Playable({ video, deleteDrone }: { video: Video, deleteDrone: () => Pro
                         href={'/watch/' + video.id}
                         isPressable
                     >
-                        <div className="bg-default-100 *:m-auto">{thumbnail}</div>
+                        <div className="bg-default-100 w-full">{thumbnail}</div>
                         <CardFooter className="flex flex-col items-center">
                             <b>{video.title}</b>
                         </CardFooter>
                     </Card>
-                    <div className='absolute bottom-2 right-2 radius-full'>
+                    <div className='absolute bottom-1 right-2 radius-full'>
                         <DropdownTrigger>
                             <Button variant="light" radius='full' isIconOnly>
                                 <EllipsisVerticalIcon className="size-4 text-white" />
@@ -204,7 +204,7 @@ function Playable({ video, deleteDrone }: { video: Video, deleteDrone: () => Pro
     );
 }
 
-function AddDroneForm({ videos, setVideos }: { videos: Video[] | null, setVideos: React.Dispatch<React.SetStateAction<Video[] | null>> }) {
+function AddDroneForm({ videos, setVideos, onClose }: { videos: Video[] | null, setVideos: React.Dispatch<React.SetStateAction<Video[] | null>>, onClose: () => void }) {
     return (
         <form
             className="w-full px-8 space-y-2 mx-auto"
@@ -270,6 +270,7 @@ function AddDroneForm({ videos, setVideos }: { videos: Video[] | null, setVideos
                         severity: 'success',
                         timeout: 3000,
                     });
+                    onClose();
                 } catch (error: any) {
                     addToast({
                         title: 'Error',
@@ -278,6 +279,7 @@ function AddDroneForm({ videos, setVideos }: { videos: Video[] | null, setVideos
                         severity: 'danger',
                         timeout: 3000,
                     });
+
                 }
             }}
         >
