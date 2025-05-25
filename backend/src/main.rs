@@ -104,8 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);    
-    
-    // Build application router
+      // Build application router
     let app = Router::new()
         .route("/api/feed", get(feed::get_feed))
         .route("/api/drones", post(drones::add_drone))
@@ -113,6 +112,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             get(drones::get_drone_by_id)
             .delete(drones::delete_drone)
         )
+        .route("/api/drones/{id}/revive", post(drones::revive_drone_connection))
+        .route("/api/drones/{id}/status", get(drones::get_connection_status))
         .merge(websocket::router()) // Используем новый WebSocket роутер
         .layer(Extension(app_state))
         .layer(cors);

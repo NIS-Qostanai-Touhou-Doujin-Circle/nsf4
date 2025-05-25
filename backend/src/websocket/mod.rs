@@ -153,7 +153,15 @@ async fn handle_single_drone_socket(socket: WebSocket, state: Arc<AppState>, dro
                 tracing::error!(error = ?e, "Failed to send error message");
             }
             return;
-        }    };    // Получаем последние GPS-данные для этого дрона
+        }    
+    };
+
+    // Attempt to revive drone connection if not already active
+    if let Err(e) = crate::services::revive_drone_connection(state.clone(), drone_id.clone()).await {
+        tracing::warn!(drone_id = %drone_id, error = %e, "Failed to revive drone connection, continuing anyway");
+    }
+
+    // Получаем последние GPS-данные для этого дрона
     let _drone_gps = match crate::services::get_drone_gps_data(state.clone(), drone_id.clone()).await {
         Ok(Some(gps)) => {
             if let Err(e) = sender.send(Message::Text(serde_json::to_string(&WebSocketMessage {
@@ -288,11 +296,15 @@ async fn handle_client_message(
                         message_type: "gps_update_ack".to_string(),
                         data: json!({ "status": "ok" }),
                     })?.into())).await?;
-                }
-                // Запрос на получение данных GPS
+                }                // Запрос на получение данных GPS
                 "gps_request" => {
                     // Если в запросе указан drone_id, вернем данные только для этого дрона
                     if let Some(drone_id) = msg.data.get("drone_id").and_then(|v| v.as_str()) {
+                        // Attempt to revive drone connection before getting GPS data
+                        if let Err(e) = crate::services::revive_drone_connection(state.clone(), drone_id.to_string()).await {
+                            tracing::warn!(drone_id = %drone_id, error = %e, "Failed to revive drone connection for GPS request");
+                        }
+                        
                         let gps_data = crate::services::get_drone_gps_data(state, drone_id.to_string()).await?;
                         sender.send(Message::Text(serde_json::to_string(&WebSocketMessage {
                             message_type: ws_message_types::GPS_DATA.to_string(),

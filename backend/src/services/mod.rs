@@ -8,12 +8,60 @@ use tokio::time::Duration;
 use std::io::{Error, ErrorKind};
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
-use tokio::task::JoinHandle;
-use std::collections::HashMap;
+use tokio::task::{JoinHandle, AbortHandle};
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use tokio::sync::broadcast;
 pub mod drone_client;
 use uuid::Uuid; // Add this if not already present
+
+/// Connection manager to track active drone WebSocket connections
+#[derive(Debug)]
+struct DroneConnectionManager {
+    active_connections: HashMap<String, AbortHandle>,
+}
+
+impl DroneConnectionManager {
+    fn new() -> Self {
+        DroneConnectionManager {
+            active_connections: HashMap::new(),
+        }
+    }
+    
+    fn add_connection(&mut self, drone_id: String, abort_handle: AbortHandle) {
+        // If there's an existing connection, abort it first
+        if let Some(old_handle) = self.active_connections.remove(&drone_id) {
+            old_handle.abort();
+            tracing::info!(drone_id = %drone_id, "Aborted existing drone connection");
+        }
+        self.active_connections.insert(drone_id.clone(), abort_handle);
+        tracing::info!(drone_id = %drone_id, "Added new drone connection");
+    }
+    
+    fn remove_connection(&mut self, drone_id: &str) -> bool {
+        if let Some(handle) = self.active_connections.remove(drone_id) {
+            handle.abort();
+            tracing::info!(drone_id = %drone_id, "Removed and aborted drone connection");
+            true
+        } else {
+            false
+        }
+    }
+    
+    fn is_connected(&self, drone_id: &str) -> bool {
+        self.active_connections.contains_key(drone_id)
+    }
+    
+    fn get_active_connections(&self) -> HashSet<String> {
+        self.active_connections.keys().cloned().collect()
+    }
+}
+
+// Global drone connection manager
+lazy_static::lazy_static! {
+    static ref DRONE_CONNECTIONS: Mutex<DroneConnectionManager> = Mutex::new(DroneConnectionManager::new());
+}
+
 /// Task manager to keep track of running thumbnail update tasks
 struct ThumbnailTaskManager {
     tasks: HashMap<String, JoinHandle<()>>,
@@ -265,4 +313,77 @@ pub async fn get_all_drones_gps_data(
         "services::get_all_drones_gps_data succeeded (Redis version)"
     );
       Ok(all_gps_data)
+}
+
+/// Revive a drone connection if it's not already active
+pub async fn revive_drone_connection(
+    state: Arc<AppState>,
+    drone_id: String,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    tracing::info!(drone_id = %drone_id, "services::revive_drone_connection called");
+    
+    // Check if drone is already connected
+    {
+        let connection_manager = DRONE_CONNECTIONS.lock().unwrap();
+        if connection_manager.is_connected(&drone_id) {
+            tracing::info!(drone_id = %drone_id, "Drone connection already active");
+            return Ok(());
+        }
+    }
+    
+    // Get drone information from database
+    let drone = database::get_video_by_id(&state.db, drone_id.clone()).await
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+    
+    let drone = match drone {
+        Some(d) => d,
+        None => {
+            tracing::error!(drone_id = %drone_id, "Drone not found in database");
+            return Err("Drone not found".into());
+        }
+    };
+    
+    // Check if drone has a WebSocket URL
+    let ws_url = match drone.ws_url.as_ref().filter(|url| !url.trim().is_empty()) {
+        Some(url) => url.clone(),
+        None => {
+            tracing::warn!(drone_id = %drone_id, "No WebSocket URL configured for drone");
+            return Ok(()); // Not an error, just no connection to establish
+        }
+    };
+    
+    tracing::info!(drone_id = %drone_id, ws_url = %ws_url, "Starting drone connection revival");
+    
+    // Start the connection in a background task
+    let state_clone = state.clone();
+    let drone_id_clone = drone_id.clone();
+    let ws_url_clone = ws_url.clone();
+    
+    let connection_task = tokio::spawn(async move {
+        match drone_client::connect_to_drone(state_clone, drone_id_clone.clone(), ws_url_clone).await {
+            Ok(_) => tracing::info!(drone_id = %drone_id_clone, "Drone connection revival completed"),
+            Err(e) => tracing::error!(drone_id = %drone_id_clone, error = %e, "Drone connection revival failed"),
+        }
+    });
+    
+    // Track the connection
+    {
+        let mut connection_manager = DRONE_CONNECTIONS.lock().unwrap();
+        connection_manager.add_connection(drone_id.clone(), connection_task.abort_handle());
+    }
+    
+    tracing::info!(drone_id = %drone_id, "Drone connection revival initiated");
+    Ok(())
+}
+
+/// Get current connection status for a drone
+pub fn get_drone_connection_status(drone_id: &str) -> bool {
+    let connection_manager = DRONE_CONNECTIONS.lock().unwrap();
+    connection_manager.is_connected(drone_id)
+}
+
+/// Get all active drone connections
+pub fn get_active_drone_connections() -> HashSet<String> {
+    let connection_manager = DRONE_CONNECTIONS.lock().unwrap();
+    connection_manager.get_active_connections()
 }

@@ -87,3 +87,49 @@ pub async fn get_drone_by_id(
         None => Err((StatusCode::NOT_FOUND, "Drone not found".to_string())),
     }
 }
+
+pub async fn revive_drone_connection(
+    Extension(state): Extension<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    tracing::info!(drone_id = %id, "api::drones::revive_drone_connection called");
+    
+    match services::revive_drone_connection(state, id.clone()).await {
+        Ok(_) => {
+            let response = serde_json::json!({
+                "success": true,
+                "message": format!("Connection revival initiated for drone {}", id),
+                "drone_id": id
+            });
+            Ok(Json(response))
+        },
+        Err(e) => {
+            tracing::error!(drone_id = %id, error = %e, "revive_drone_connection service error");
+            let response = serde_json::json!({
+                "success": false,
+                "error": e.to_string(),
+                "drone_id": id
+            });
+            Err((StatusCode::INTERNAL_SERVER_ERROR, response.to_string()))
+        }
+    }
+}
+
+pub async fn get_connection_status(
+    Extension(_state): Extension<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    tracing::info!(drone_id = %id, "api::drones::get_connection_status called");
+    
+    let is_connected = services::get_drone_connection_status(&id);
+    let active_connections = services::get_active_drone_connections();
+    
+    let response = serde_json::json!({
+        "drone_id": id,
+        "is_connected": is_connected,
+        "active_connections": active_connections.len(),
+        "all_active_connections": active_connections
+    });
+    
+    Ok(Json(response))
+}

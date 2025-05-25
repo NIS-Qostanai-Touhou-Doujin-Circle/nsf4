@@ -147,21 +147,33 @@ pub async fn start_drone_clients(state: Arc<AppState>) -> Result<(), Box<dyn Std
             return Err(Box::new(e) as Box<dyn StdError + Send + Sync>);
         }
     };    // Запускаем клиент для каждого дрона
-    for drone in drones {
-        // Используем сохраненный ws_url если он есть, иначе пропускаем дрон
+    for drone in drones {        // Используем сохраненный ws_url если он есть, иначе пропускаем дрон
         if let Some(ws_url) = drone.ws_url.as_ref().filter(|url| !url.trim().is_empty()) {
             let state_clone = state.clone();
             let drone_id = drone.id.clone();
+            let drone_id_for_task = drone_id.clone();
             let ws_url_clone = ws_url.clone();
             
             info!(drone_id = %drone.id, ws_url = %ws_url, "Started WebSocket client for drone");
             
-            tokio::spawn(async move {
-                match connect_to_drone(state_clone, drone_id.clone(), ws_url_clone).await {
-                    Ok(_) => info!(drone_id = %drone_id, "Drone client finished successfully"),
-                    Err(e) => error!(drone_id = %drone_id, error = %e, "Drone client error"),
+            let connection_task = tokio::spawn(async move {
+                match connect_to_drone(state_clone, drone_id_for_task.clone(), ws_url_clone).await {
+                    Ok(_) => info!(drone_id = %drone_id_for_task, "Drone client finished successfully"),
+                    Err(e) => error!(drone_id = %drone_id_for_task, error = %e, "Drone client error"),
+                }
+                
+                // Remove from connection manager when task finishes
+                {
+                    let mut connection_manager = super::DRONE_CONNECTIONS.lock().unwrap();
+                    connection_manager.remove_connection(&drone_id_for_task);
                 }
             });
+            
+            // Register the connection in the manager
+            {
+                let mut connection_manager = super::DRONE_CONNECTIONS.lock().unwrap();
+                connection_manager.add_connection(drone_id.clone(), connection_task.abort_handle());
+            }
         } else {
             info!(drone_id = %drone.id, "No WebSocket URL configured for drone, skipping WebSocket connection");
         }
