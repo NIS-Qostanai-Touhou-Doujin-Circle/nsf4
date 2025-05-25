@@ -15,7 +15,7 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> Result<Self, env::VarError> {
-        // Load configuration from environment variables with fallbacks to defaults
+        // Загрузка конфигурации из переменных окружения с возвратом к значениям по умолчанию
         let database_url = env::var("DATABASE_URL")
             .unwrap_or_else(|_| "mysql://root:root@localhost:3306/nsf".to_string());
         
@@ -31,7 +31,8 @@ impl Config {
             .ok()
             .and_then(|s| s.parse::<u64>().ok())
             .unwrap_or(10);
-              let screenshot_quality = env::var("SCREENSHOT_QUALITY")
+              
+        let screenshot_quality = env::var("SCREENSHOT_QUALITY")
             .ok()
             .and_then(|s| s.parse::<u32>().ok())
             .unwrap_or(80);
@@ -49,12 +50,11 @@ impl Config {
                 } else {    
                     format!("redis://{}:{}@localhost:6379", redis_username, redis_password)
                 }
-            });
-            
+            });            
         let gps_data_ttl_seconds = env::var("GPS_DATA_TTL_SECONDS")
             .ok()
             .and_then(|s| s.parse::<u64>().ok())
-            .unwrap_or(3600); // 1 hour default
+            .unwrap_or(3600); // 1 час по умолчанию
         
         let cfg = Config {
             database_url,
@@ -64,7 +64,9 @@ impl Config {
             screenshot_quality,
             redis_url,
             gps_data_ttl_seconds,
-        };        info!(
+        };
+        
+        info!(
             database_url = %cfg.database_url, 
             port = cfg.port, 
             media_server_url = %cfg.media_server_url,
@@ -72,8 +74,9 @@ impl Config {
             screenshot_quality = cfg.screenshot_quality,
             redis_url = %cfg.redis_url,
             gps_data_ttl = cfg.gps_data_ttl_seconds,
-            "Configuration loaded from environment"
+            "Конфигурация загружена из окружения"
         );
+        
         Ok(cfg)
     }
 }
