@@ -7,7 +7,6 @@ WORKDIR /app
 
 COPY app ./app
 COPY public ./public
-COPY config ./config
 COPY styles ./styles
 COPY types ./types
 COPY next.config.js ./
