@@ -3,8 +3,7 @@ import { Map } from '@2gis/mapgl/types';
 import React from 'react';
 import { useEffect } from 'react';
 
-type MapContextType = {map: Map, api: typeof import("/home/omga/Documents/nsf4/node_modules/.pnpm/@2gis+mapgl@1.60.0/node_modules/@2gis/mapgl/types/index")}
-
+type MapContextType = {map: Map, api: typeof import("@2gis/mapgl/types/index")}
 export const MapContext = React.createContext<[MapContextType | null, React.Dispatch<React.SetStateAction<MapContextType | null>>]>([null, () => {}]);
 export const MapProvider = (props : { children: React.ReactNode }) => {
     const [mapInstance, setMapInstance] = React.useState<MapContextType | null>(null);

@@ -16,11 +16,7 @@ export interface AddDroneRequest {
     title: string;
 }
 
-export interface AddDroneResponse {
-    id: string;
-    url: string;
-    title: string;
-    createdAt: string;
+export interface AddDroneResponse extends Omit<Video, 'thumbnail'> {
 }
 
 export interface DeleteDroneRequest {

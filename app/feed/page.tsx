@@ -9,12 +9,14 @@ import { addToast } from '@heroui/toast';
 import { Input } from '@heroui/input';
 import { Button } from '@heroui/button';
 import { Divider } from '@heroui/divider';
+import { Dropdown, DropdownItem, DropdownMenu, DropdownTrigger } from '@heroui/dropdown';
 
 import { Video } from '../types/api';
 import { fetchFeed } from '../network/feed-get';
-import { addDrone } from '../network/add-drone';
+import { addDrone, deleteDrone } from '../network/drone';
 
 import { useSearch } from '@/app/components/search-context';
+import { EllipsisVerticalIcon } from '@heroicons/react/24/outline';
 
 export default function Page() {
     const [searchValue, setSearchValue] = useState('');
@@ -82,28 +84,28 @@ export default function Page() {
     } else {
         content = (
             <div className="grid grid-cols-3 gap-x-6 gap-y-6">
-                {filteredVideos.map((video: Video, index) => {
-                    const thumbnail = video.thumbnail ? (
-                        <Image alt={video.title} height={200} radius="none" src={video.thumbnail} />
-                    ) : (
-                        <Skeleton className="w-full h-[200px]" />
-                    );
-
-                    return (
-                        <Card
-                            key={index}
-                            isPressable
-                            as={Link}
-                            className="flex flex-col items-center"
-                            href={'/watch/' + video.id}
-                        >
-                            <div className="bg-default-100 *:m-auto">{thumbnail}</div>
-                            <CardFooter className="flex flex-col items-center">
-                                <b>{video.title}</b>
-                            </CardFooter>
-                        </Card>
-                    );
-                })}
+                {filteredVideos.map((video: Video, index) => (
+                    <Playable key={index} video={video} deleteDrone={
+                        () => deleteDrone(video.id).then(() => {
+                            setVideos((prevVideos) => prevVideos?.filter((v) => v.id !== video.id) || null);
+                            addToast({
+                                title: 'Drone deleted successfully',
+                                description: `Drone "${video.title}" has been deleted.`,
+                                color: 'success',
+                                severity: 'success',
+                                timeout: 3000,
+                            });
+                        }).catch((error) => {
+                            addToast({
+                                title: 'Error deleting drone',
+                                description: error.message,
+                                color: 'danger',
+                                severity: 'danger',
+                                timeout: 3000,
+                            });
+                        })
+                    } />
+                ))}
             </div>
         );
     }
@@ -112,7 +114,7 @@ export default function Page() {
         <div>
             <div className="text-center mx-auto">
                 <h1 className="text-2xl font-bold">Feed</h1>
-                <AddDroneForm />
+                <AddDroneForm videos={videos} setVideos={setVideos}/>
             </div>
             <Divider className="my-16" />
             {content}
@@ -120,7 +122,42 @@ export default function Page() {
     );
 }
 
-function AddDroneForm() {
+function Playable({ video, deleteDrone }: { video: Video, deleteDrone: () => Promise<void> }) {
+    const thumbnail = video.thumbnail ? (
+        <Image alt={video.title} height={200} radius="none" src={video.thumbnail} />
+    ) : (
+        <Skeleton className="w-full h-[200px]" />
+    );
+
+    return (
+        <Dropdown>
+            <Card
+                as={Link}
+                className="flex flex-col items-center"
+                href={'/watch/' + video.id}
+            >
+                <div className="bg-default-100 *:m-auto">{thumbnail}</div>
+                <CardFooter className="flex flex-col items-center relative">
+                    <b>{video.title}</b>
+                    <DropdownTrigger>
+                        <Button variant="light" radius='full' isIconOnly className="absolute right-2 bottom-2 z-10">
+                            <EllipsisVerticalIcon className="size-4 text-white" />
+                        </Button>
+                    </DropdownTrigger>
+                </CardFooter>
+            </Card>
+            <DropdownMenu onAction={(action) => {
+                if (action === 'delete') {
+                    deleteDrone();
+                }
+            }}>
+                <DropdownItem key='delete'>Delete</DropdownItem>
+            </DropdownMenu>
+        </Dropdown>
+    );
+}
+
+function AddDroneForm({ videos, setVideos }: { videos: Video[] | null, setVideos: React.Dispatch<React.SetStateAction<Video[] | null>> }) {
     return (
         <form
             className="w-fit space-y-2 mx-auto"
@@ -143,7 +180,12 @@ function AddDroneForm() {
                     return;
                 }
                 try {
-                    await addDrone({ url, title });
+                    let drone = await addDrone({ url, title });
+                    const video = {
+                        ...drone,
+                        thumbnail: '',
+                    } as Video;
+                    setVideos((prevVideos) => [...(prevVideos || []), video]);
                     addToast({
                         title: 'Success',
                         description: 'Drone added successfully',

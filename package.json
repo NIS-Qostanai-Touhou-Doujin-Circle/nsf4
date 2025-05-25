@@ -14,6 +14,7 @@
     "@heroui/card": "^2.2.18",
     "@heroui/code": "2.2.14",
     "@heroui/divider": "^2.2.13",
+    "@heroui/dropdown": "^2.3.19",
     "@heroui/image": "^2.2.12",
     "@heroui/input": "2.4.19",
     "@heroui/kbd": "2.2.15",
@@ -44,7 +45,6 @@
   },
   "devDependencies": {
     "@react-types/shared": "3.29.0",
-    "@tauri-apps/cli": "^2.5.0",
     "@types/node": "22.15.3",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",

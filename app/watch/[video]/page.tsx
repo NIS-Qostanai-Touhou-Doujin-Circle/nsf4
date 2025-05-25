@@ -1,5 +1,5 @@
 'use client';
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Hls from 'hls.js';
 import { Skeleton } from '@heroui/skeleton';
@@ -10,6 +10,17 @@ import { mediaServerUrl } from '@/app/network/consts';
 import { getVideoData } from '@/app/network/get-video-data';
 import { DroneMap, MapContext } from '@/app/components/map';
 import { load } from '@2gis/mapgl'
+import { TrashIcon } from '@heroicons/react/24/outline';
+import { Button } from '@heroui/button';
+
+const usePrevious = <T extends any>(value: T): T | undefined => {
+  const ref = useRef<T>();
+  useEffect(() => {
+    ref.current = value;
+  });
+  return ref.current;
+};
+
 
 export default function WatchVideoPage() {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -19,7 +30,8 @@ export default function WatchVideoPage() {
     const [videoExists, setVideoExists] = useState(true);
     const [title, setTitle] = useState<string | null>(null);
 
-    const [mapPoint, setMapPoint] = useState<[number, number] | null>([55.31878, 25.23584]);
+    const [mapPoint, setMapPoint] = useState<[number, number] | null>([63.658686, 53.218282]);
+    const previousMapPoint = usePrevious(mapPoint);
     const [cleanupFunc, setCleanupFunc] = useState<(() => void) | null>(null);
     const [mapContext, _] = useContext(MapContext);
     useEffect(() => {
@@ -30,20 +42,34 @@ export default function WatchVideoPage() {
         if (!api) return;
         if (!mapPoint) return;
         cleanupFunc?.();
+        let rotation = 0;
+        if (previousMapPoint) {
+            const dx = mapPoint[0] - previousMapPoint[0];
+            const dy = mapPoint[1] - previousMapPoint[1];
+            rotation = Math.atan2(-dy, dx) * (180 / Math.PI) + 180;
+        }
         const point = new api.Marker(map, {
             coordinates: mapPoint,
+            icon: "/depa.png",
+            size: [100, 100],
+            rotation
         });
         setCleanupFunc(() => () => {point.destroy();});
     }, [mapPoint, mapContext]);
 
+    const [velocity, setVelocity] = useState<[number, number]>([0.0001, 0.0001]);
+
     useEffect(() => {
         setInterval(() => {
             if (!mapPoint) return;
+            
             setMapPoint((prev) => {
                 if (!prev) return null;
-                return [prev[0] + 0.0001, prev[1] + 0.0001];
+                velocity[0] += (Math.random() - 0.5) * 0.0001;
+                velocity[1] += (Math.random() - 0.5) * 0.0001;
+                return [prev[0] + velocity[0], prev[1] + velocity[1]];
             });
-        }, 500);
+        }, 100);
     }, []);
 
     useEffect(() => {
@@ -83,6 +109,23 @@ export default function WatchVideoPage() {
             });
     }, [videoId]);
 
+    const findDrone = useCallback(() => {
+        if (!mapContext) return;
+        const map = mapContext.map;
+        if (!map) return;
+        if (!mapPoint) {
+            addToast({
+                title: 'Error',
+                description: 'Drone location is not available',
+                color: 'danger',
+                severity: 'danger',
+                timeout: 3000,
+            });
+            return;
+        }
+        map.setCenter(mapPoint);
+    }, [mapPoint]);
+
     return (
         <div className="flex flex-col items-center justify-center">
             <div className="grid grid-cols-2 max-w-screen-xl w-full gap-8">
@@ -103,6 +146,7 @@ export default function WatchVideoPage() {
                 </div>
                 <div className='w-full h-[400px]'>
                     <DroneMap />
+                    <Button onPress={findDrone}>Find the drone</Button>
                 </div>
             </div>
         </div>
