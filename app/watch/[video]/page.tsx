@@ -6,7 +6,7 @@ import { Skeleton } from '@heroui/skeleton';
 import { addToast } from '@heroui/toast';
 
 import { Video } from '@/app/types/api';
-import { mediaServerUrl } from '@/app/network/consts';
+import { mediaServerUrl, serverUrl } from '@/app/network/consts';
 import { getVideoData } from '@/app/network/get-video-data';
 import { DroneMap, MapContext } from '@/app/components/map';
 import { load } from '@2gis/mapgl'
@@ -46,25 +46,55 @@ export default function WatchVideoPage() {
             coordinates: mapPoint,
             icon: "/depa.png",
             size: [100, 100],
-            rotation
+            label: {
+                text: title || 'Drone',
+                color: 'white',
+                fontSize: 16
+            },
+            rotation: rotation,
         });
         setCleanupFunc(() => () => {point.destroy();});
     }, [mapPoint, mapContext]);
 
-    const [velocity, setVelocity] = useState<[number, number]>([0.0001, 0.0001]);
-
+    // --- WebSocket logic for live drone position ---
     useEffect(() => {
-        setInterval(() => {
-            if (!mapPoint) return;
-            
-            setMapPoint((prev) => {
-                if (!prev) return null;
-                velocity[0] += (Math.random() - 0.5) * 0.0001;
-                velocity[1] += (Math.random() - 0.5) * 0.0001;
-                return [prev[0] + velocity[0], prev[1] + velocity[1]];
+        if (!videoId) return;
+        // Convert http:// to ws:// for WebSocket
+        const wsUrl = serverUrl.replace(/^http/, 'ws') + `/ws/${videoId}`;
+        let ws: WebSocket | null = new WebSocket(wsUrl);
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+                    setMapPoint([data.latitude, data.longitude]);
+                }
+                addToast({
+                    title: 'WebSocket connected',
+                    description: 'Drone position stream is active.',
+                    color: 'success',
+                    severity: 'success',
+                    timeout: 3000,
+                });
+            } catch (e) {
+                // Ignore malformed messages
+            }
+        };
+        ws.onopen = () => {
+        };
+        ws.onerror = () => {
+            addToast({
+                title: 'WebSocket error',
+                description: 'Could not connect to drone position stream.',
+                color: 'danger',
+                severity: 'danger',
+                timeout: 3000,
             });
-        }, 100);
-    }, []);
+        };
+        return () => {
+            ws?.close();
+        };
+    }, [videoId]);
+    // --- End WebSocket logic ---
 
     useEffect(() => {
         const video = videoRef.current;
