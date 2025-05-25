@@ -167,7 +167,18 @@ function AddDroneForm({ videos, setVideos }: { videos: Video[] | null, setVideos
                 const formData = new FormData(e.currentTarget);
                 const url = formData.get('url') as string;
                 const title = formData.get('title') as string;
-
+                const ws = formData.get('ws') as string;
+                // Validate inputs
+                if (ws && !ws.startsWith('ws://') && !ws.startsWith('wss://')) {
+                    addToast({
+                        title: 'Error',
+                        description: 'WebSocket URL must start with ws:// or wss://',
+                        color: 'danger',
+                        severity: 'danger',
+                        timeout: 3000,
+                    });
+                    return;
+                }
                 if (!url || !title) {
                     addToast({
                         title: 'Error',
@@ -179,8 +190,27 @@ function AddDroneForm({ videos, setVideos }: { videos: Video[] | null, setVideos
 
                     return;
                 }
+                if (!url.startsWith('rtmp://')) {
+                    addToast({
+                        title: 'Error',
+                        description: 'URL must start with rtmp://',
+                        color: 'danger',
+                        severity: 'danger',
+                        timeout: 3000,
+                    });
+                    return;
+                }
+                if (!url.includes(':1935')) {
+                    addToast({
+                        title: 'Warning',
+                        description: 'URL probably should include port :1935',
+                        color: 'warning',
+                        severity: 'warning',
+                        timeout: 3000,
+                    });
+                }
                 try {
-                    let drone = await addDrone({ url, title });
+                    let drone = await addDrone({ url, title, ws });
                     const video = {
                         ...drone,
                         thumbnail: '',
@@ -204,8 +234,9 @@ function AddDroneForm({ videos, setVideos }: { videos: Video[] | null, setVideos
                 }
             }}
         >
-            <Input name="url" placeholder="Drone URL" />
-            <Input name="title" placeholder="Drone Title" />
+            <Input name="url" placeholder="Drone URL" isRequired />
+            <Input name="title" placeholder="Drone Title" isRequired />
+            <Input name="ws" placeholder="Geolocation WebSocket URL (Optional)" />
             <Button color="primary" type="submit">
                 Add Drone
             </Button>
