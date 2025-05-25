@@ -1,10 +1,7 @@
 use sqlx::{Pool, MySql, query, query_as};
 use tracing::info;
-use uuid::Uuid;
 use chrono::Utc;
-
-use crate::models::Video;
-use std::process::Command;
+use crate::models::{Video};
 use base64::{engine::general_purpose, Engine as _};
 
 pub async fn get_videos(pool: &Pool<MySql>) -> Result<Vec<Video>, sqlx::Error> {
@@ -12,7 +9,7 @@ pub async fn get_videos(pool: &Pool<MySql>) -> Result<Vec<Video>, sqlx::Error> {
     // Using dynamic query instead of macro to avoid compile-time DB connection requirement
     let videos = query_as::<_, Video>(
         r#"
-        SELECT id, url, title, thumbnail, created_at as `createdAt`
+        SELECT id, url, title, thumbnail, created_at, rtmp_url, ws_url, video_source_name
         FROM videos
         ORDER BY created_at DESC
         "#
@@ -26,9 +23,9 @@ pub async fn get_videos(pool: &Pool<MySql>) -> Result<Vec<Video>, sqlx::Error> {
 }
 
 // Extracts the first frame of the video at source_url as a base64-encoded PNG
-fn extract_thumbnail(source_url: &str) -> Result<String, Box<dyn std::error::Error>> {
+async fn extract_thumbnail(source_url: &str) -> Result<String, Box<dyn std::error::Error>> {
     // Use ffmpeg to capture the first frame image to stdout
-    let output = Command::new("ffmpeg")
+    let output = tokio::process::Command::new("ffmpeg")
         .args(&[
             "-i",
             source_url,
@@ -40,7 +37,8 @@ fn extract_thumbnail(source_url: &str) -> Result<String, Box<dyn std::error::Err
             "png",
             "pipe:1",
         ])
-        .output()?;
+        .output()
+        .await?;
     if !output.status.success() {
         return Err(format!("ffmpeg exited with status: {}", output.status).into());
     }
@@ -50,12 +48,10 @@ fn extract_thumbnail(source_url: &str) -> Result<String, Box<dyn std::error::Err
 }
 
 pub async fn get_video_by_id(pool: &Pool<MySql>, id: String) -> Result<Option<Video>, sqlx::Error> {
-    // Log and borrow id to avoid moving
-    info!(video_id = &id, "database::get_video_by_id called");
-    // Using dynamic query
+    // Log and borrow id to avoid moving    info!(video_id = &id, "database::get_video_by_id called");    // Using dynamic query
     let video = query_as::<_, Video>(
         r#"
-        SELECT id, url, title, thumbnail, created_at as `createdAt`
+        SELECT id, url, title, thumbnail, created_at, rtmp_url, ws_url, video_source_name
         FROM videos
         WHERE id = ?
         "#
@@ -71,42 +67,41 @@ pub async fn get_video_by_id(pool: &Pool<MySql>, id: String) -> Result<Option<Vi
 
 pub async fn add_video(
     pool: &Pool<MySql>,
-    url: String,
+    id: String, // Changed: Accept ID as a parameter
     title: String,
+    rtmp_url: String,
+    ws_url: Option<String>,
 ) -> Result<Video, sqlx::Error> {
-    // Use the proper UUID builder method with the v4 feature
-    info!(url = %url, title = %title, "database::add_video called");
-    let id = Uuid::new_v4().to_string();    
+    // Removed: let id = Uuid::new_v4().to_string();
     let now = Utc::now();
     let created_at = now.to_rfc3339();
     // Extract thumbnail from the source URL
-    let thumbnail = match extract_thumbnail(&url) {
+    let thumbnail = match extract_thumbnail(&rtmp_url).await {
         Ok(b64) => b64,
         Err(e) => {
             info!(error = %e, "Failed to extract thumbnail, using empty string");
             String::new()
         }
-    };
-
-    // Using dynamic query
+    };// Using dynamic query
     query(
         r#"
-        INSERT INTO videos (id, url, title, thumbnail, created_at)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO videos (id, url, title, thumbnail, created_at, rtmp_url, ws_url, video_source_name)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         "#
     )
     .bind(&id)
-    .bind(&url)
+    .bind(&rtmp_url)  // url field should be set to rtmp_url
     .bind(&title)
     .bind(&thumbnail)
     .bind(&created_at)
+    .bind(&rtmp_url)
+    .bind(&ws_url)
+    .bind(&title)  // video_source_name can be set to title for now
     .execute(pool)
-    .await?;
-
-    // Fetch the newly inserted record
+    .await?;// Fetch the newly inserted record
     let video = query_as::<_, Video>(
         r#"
-        SELECT id, url, title, thumbnail, created_at as `createdAt`
+        SELECT id, url, title, thumbnail, created_at, rtmp_url, ws_url, video_source_name
         FROM videos
         WHERE id = ?
         "#

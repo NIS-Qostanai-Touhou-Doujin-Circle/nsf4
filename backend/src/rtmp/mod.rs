@@ -98,8 +98,7 @@ impl RelayManager {
                 tracing::error!("Failed to start ffmpeg relay for {}: {}", relay.drone_id, e);
                 None
             }
-        }
-    }
+        }    }
     
     // Stop relay process
     // Renamed to stop_process_static and removed &self
@@ -107,9 +106,23 @@ impl RelayManager {
         if let Some(process) = &mut relay_process.process {
             tracing::info!("Stopping relay for {}", relay_process.relay.drone_id);
             
-            // Try to kill the process gracefully
+            // Try to kill the process gracefully first
             if let Err(e) = process.kill() {
-                tracing::error!("Failed to kill relay process: {}", e);
+                tracing::warn!("Failed to kill process: {}", e);
+            }
+            
+            // Use try_wait instead of wait to avoid hanging
+            match process.try_wait() {
+                Ok(Some(status)) => {
+                    tracing::info!("Process exited with status: {}", status);
+                }
+                Ok(None) => {
+                    tracing::warn!("Process did not exit immediately after kill signal");
+                    // Could implement a timeout here if needed
+                }
+                Err(e) => {
+                    tracing::error!("Error checking process status: {}", e);
+                }
             }
         }
     }

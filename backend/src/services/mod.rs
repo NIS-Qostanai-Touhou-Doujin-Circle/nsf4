@@ -3,8 +3,7 @@ use std::sync::Arc;
 use crate::config::Config;
 use crate::models::{Video, Feed};
 use crate::database;
-// For periodic screenshot capture and base64 encoding
-use tokio::process::Command;
+use crate::redis::{RedisClient, RedisGpsData};
 use tokio::time::Duration;
 use std::io::{Error, ErrorKind};
 use base64::engine::general_purpose::STANDARD;
@@ -12,7 +11,9 @@ use base64::Engine;
 use tokio::task::JoinHandle;
 use std::collections::HashMap;
 use std::sync::Mutex;
-
+use tokio::sync::broadcast;
+pub mod drone_client;
+use uuid::Uuid; // Add this if not already present
 /// Task manager to keep track of running thumbnail update tasks
 struct ThumbnailTaskManager {
     tasks: HashMap<String, JoinHandle<()>>,
@@ -51,9 +52,19 @@ lazy_static::lazy_static! {
     static ref THUMBNAIL_TASKS: Mutex<ThumbnailTaskManager> = Mutex::new(ThumbnailTaskManager::new());
 }
 
+
+// Global channel for GPS updates - можно получать последние обновления GPS для всех дронов
+lazy_static::lazy_static! {
+    pub static ref GPS_UPDATES: broadcast::Sender<RedisGpsData> = {
+        let (sender, _) = broadcast::channel(100); // Буфер на 100 сообщений
+        sender
+    };
+}
+
 pub struct AppState {
     pub db: Pool<MySql>, // Changed from Postgres to MySql
     pub config: Config,
+    pub redis: RedisClient,
 }
 
 pub async fn get_feed(state: Arc<AppState>) -> Result<Feed, sqlx::Error> {
@@ -68,7 +79,7 @@ pub async fn get_feed(state: Arc<AppState>) -> Result<Feed, sqlx::Error> {
 async fn capture_screenshot(source_url: &str, quality: u32) -> Result<Vec<u8>, Error> {
     // Use ffmpeg to capture one frame as JPG to stdout with specified quality
     // JPG is more size-efficient than PNG for thumbnails
-    let output = Command::new("ffmpeg")
+    let output = tokio::process::Command::new("ffmpeg")
         .arg("-y")                   // Overwrite output files
         .arg("-i")
         .arg(source_url)
@@ -98,53 +109,49 @@ async fn capture_screenshot(source_url: &str, quality: u32) -> Result<Vec<u8>, E
 
 pub async fn add_drone(
     state: Arc<AppState>,
-    url: String,
     title: String,
+    rtmp_url: String,
+    ws_url: Option<String>,
+    drone_id_override: Option<String>, // Added: Optional ID override
 ) -> Result<Video, sqlx::Error> {
-    // Log entering service
-    tracing::info!(url = %url, title = %title, "services::add_drone called");
-    // First add the drone to the database
-    let video = database::add_video(&state.db, url.clone(), title.clone()).await?;
+    let id_to_use = drone_id_override.unwrap_or_else(|| Uuid::new_v4().to_string()); // Use override or generate
+    // Pass id_to_use to database::add_video
+    let video = database::add_video(&state.db, id_to_use.clone(), title.clone(), rtmp_url.clone(), ws_url.clone()).await?;
     tracing::info!(video_id = %video.id, "services::add_drone database::add_video succeeded");
     // Then set up the RTMP relay
+    let source_url = rtmp_url.clone();
     let destination_url = state.config.media_server_url.clone() + "/" + &video.id;
     // Start relaying RTMP stream
-    let relay_added = crate::rtmp::add_rtmp_relay(video.id.clone(), url, destination_url);
+    let relay_added = crate::rtmp::add_rtmp_relay(video.id.clone(), source_url, destination_url);
     tracing::info!(video_id = %video.id, relay_added = %relay_added, "services::add_drone rtmp::add_rtmp_relay result");
-    
-    // Spawn periodic thumbnail capture task
+      // Spawn periodic thumbnail capture task
     {
-        let video_id = video.id.clone();
-        let source_url = video.url.clone();
-        let db_pool = state.db.clone();
-        let interval_secs = state.config.screenshot_interval_seconds;
-        let quality = state.config.screenshot_quality;
-        
-        // Create the thumbnail update task
-        let task = tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
+        let video_id_clone = video.id.clone();
+        let rtmp_url_clone = rtmp_url.clone(); // Use the original rtmp_url for thumbnails
+        let app_state_clone = state.clone();
+        let task_handle = tokio::spawn(async move {
+            // Initial delay to allow stream to stabilize
+            tokio::time::sleep(Duration::from_secs(10)).await;
             loop {
-                interval.tick().await;
-                match capture_screenshot(&source_url, quality).await {
-                    Ok(jpg) => {
-                        let b64 = STANDARD.encode(&jpg);
-                        let data_uri = format!("data:image/jpeg;base64,{}", b64);
-                        if let Err(e) = database::update_thumbnail(&db_pool, &video_id, &data_uri).await {
-                            tracing::error!(error = %e, video_id = %video_id, "Failed updating thumbnail");
-                        } else {
-                            tracing::debug!(video_id = %video_id, "Thumbnail updated successfully");
+                match capture_screenshot(&rtmp_url_clone, 5).await { // Use rtmp_url_clone
+                    Ok(image_data) => {
+                        let b64_image = STANDARD.encode(&image_data);
+                        let thumbnail_data = format!("data:image/jpeg;base64,{}", b64_image);
+                        if let Err(e) = database::update_thumbnail(&app_state_clone.db, &video_id_clone, &thumbnail_data).await {
+                            tracing::error!(video_id = %video_id_clone, error = %e, "Failed to update thumbnail in DB");
                         }
                     }
-                    Err(e) => tracing::warn!(video_id = %video_id, error = %e, "Screenshot capture failed"),
+                    Err(e) => {
+                        tracing::warn!(video_id = %video_id_clone, error = %e, "Failed to capture screenshot");
+                    }
                 }
+                // Wait for 10 seconds before next capture
+                tokio::time::sleep(Duration::from_secs(10)).await;
             }
         });
-        
-        // Register the task with the task manager
+        // Store the task handle
         if let Ok(mut task_manager) = THUMBNAIL_TASKS.lock() {
-            task_manager.add_task(video.id.clone(), task);
-        } else {
-            tracing::error!(video_id = %video.id, "Failed to register thumbnail task");
+            task_manager.add_task(video.id.clone(), task_handle);
         }
     }
     Ok(video)
@@ -184,4 +191,78 @@ pub async fn get_drone_by_id(
     let result = database::get_video_by_id(&state.db, id.clone()).await?;
     tracing::info!(drone_id = %id, found = result.is_some(), "services::get_drone_by_id database::get_video_by_id result");
     Ok(result)
+}
+
+pub async fn save_drone_gps_data(
+    state: Arc<AppState>,
+    drone_id: String,
+    latitude: f64,
+    longitude: f64,
+    _altitude: f64, // Оставляем для совместимости, но не используем в Redis
+) -> Result<RedisGpsData, Box<dyn std::error::Error + Send + Sync>> {
+    tracing::info!(
+        drone_id = %drone_id,
+        latitude = %latitude,
+        longitude = %longitude,
+        "services::save_drone_gps_data called (Redis version)"
+    );
+    
+    // Проверяем, существует ли дрон
+    let drone = database::get_video_by_id(&state.db, drone_id.clone()).await
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+    
+    if let Some(video) = drone {
+        let gps_data = state.redis.save_gps_data(
+            drone_id,
+            longitude,
+            latitude,
+            video.title        ).await.map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+        
+        // Отправляем обновление всем подписчикам
+        let _ = GPS_UPDATES.send(gps_data.clone());
+        
+        tracing::info!(
+            gps_data_id = %gps_data.id,
+            "services::save_drone_gps_data succeeded (Redis version)"
+        );
+        
+        Ok(gps_data)
+    } else {
+        Err("Drone not found".into())
+    }
+}
+
+pub async fn get_drone_gps_data(
+    state: Arc<AppState>,
+    drone_id: String,
+) -> Result<Option<RedisGpsData>, Box<dyn std::error::Error + Send + Sync>> {
+    tracing::info!(
+        drone_id = %drone_id,
+        "services::get_drone_gps_data called (Redis version)"
+    );
+    
+    let gps_data = state.redis.get_latest_gps_data(drone_id).await
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+    
+    tracing::info!(
+        found = gps_data.is_some(),
+        "services::get_drone_gps_data succeeded (Redis version)"
+    );
+    
+    Ok(gps_data)
+}
+
+pub async fn get_all_drones_gps_data(
+    state: Arc<AppState>,
+) -> Result<Vec<RedisGpsData>, Box<dyn std::error::Error + Send + Sync>> {
+    tracing::info!("services::get_all_drones_gps_data called (Redis version)");
+    
+    let all_gps_data = state.redis.get_all_latest_gps_data().await
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+    
+    tracing::info!(
+        count = all_gps_data.len(),
+        "services::get_all_drones_gps_data succeeded (Redis version)"
+    );
+      Ok(all_gps_data)
 }
