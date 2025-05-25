@@ -64,9 +64,13 @@ export default function WatchVideoPage() {
         let ws: WebSocket | null = new WebSocket(wsUrl);
         ws.onmessage = (event) => {
             try {
-                const data = JSON.parse(event.data).data;
+                const data : {
+                    latitude: number;
+                    longitude: number;
+                    title: string;
+                }= JSON.parse(event.data).data;
                 if (typeof data.latitude === 'number' && typeof data.longitude === 'number') {
-                    setMapPoint([data.latitude, data.longitude]);
+                    setMapPoint([data.longitude, data.latitude]);
                 }
             } catch (e) {
                 addToast({
