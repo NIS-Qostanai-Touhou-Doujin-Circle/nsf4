@@ -123,10 +123,6 @@ async fn handle_all_drones_socket(socket: WebSocket, state: Arc<AppState>) {
     tracing::info!("WebSocket connection closed for all drones endpoint");
 }
 
-pub async fn get_ws_count() -> Result<Json<usize>, (StatusCode, String)> {
-    return Ok(Json(GPS_UPDATES.len()))
-}
-
 // Обработка соединения для конкретного дрона
 async fn handle_single_drone_socket(socket: WebSocket, state: Arc<AppState>, drone_id: String) {
     tracing::info!(drone_id = %drone_id, "WebSocket connection established for specific drone");

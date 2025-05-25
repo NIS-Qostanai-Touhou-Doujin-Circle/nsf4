@@ -130,7 +130,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .delete(drones::delete_drone)
         )
         .route("/api/rtmp-count", get(feed::get_feed_count))
-        .route("/api/ws-count", get(websocket::get_ws_count))
         .route("/api/drones/{id}/revive", post(drones::revive_drone_connection))
         .route("/api/drones/{id}/status", get(drones::get_connection_status))
         .route("/api/analytics/{id}", get(drones::get_analytics_by_id))
