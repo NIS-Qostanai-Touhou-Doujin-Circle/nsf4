@@ -17,3 +17,27 @@
 2025-05-25T11:25:19.009898Z  INFO nsf_backend::database: database::get_videos called
 2025-05-25T11:25:19.010705Z  INFO nsf_backend::database: database::get_videos succeeded count=0
 2025-05-25T11:25:19.010717Z  INFO nsf_backend: Drone clients initialization completed
+2025-05-25T11:27:47.281942Z  INFO nsf_backend::api::feed: api::feed::get_feed called
+2025-05-25T11:27:47.281957Z  INFO nsf_backend::services: services::get_feed called
+2025-05-25T11:27:47.281963Z  INFO nsf_backend::database: database::get_videos called
+2025-05-25T11:27:47.282501Z  INFO nsf_backend::database: database::get_videos succeeded count=0
+2025-05-25T11:27:47.282509Z  INFO nsf_backend::services: services::get_feed succeeded count=0
+2025-05-25T11:27:47.282514Z  INFO nsf_backend::api::feed: Feed fetched count=0
+2025-05-25T11:28:13.574821Z  INFO nsf_backend::api::drones: api::drones::add_drone called url=rtmp://167.99.129.124:1935/badapple title=Samat S.S.
+2025-05-25T11:28:14.532964Z  INFO nsf_backend::database: Failed to extract thumbnail, using empty string error=ffmpeg exited with status: exit status: 1
+2025-05-25T11:28:14.533668Z ERROR nsf_backend::api::drones: add_drone service error error=error returned from database: 1136 (21S01): Column count doesn't match value count at row 1
+2025-05-25T11:30:14.334965Z  INFO nsf_backend::api::drones: api::drones::add_drone called url=rtmp://167.99.129.124:1935/badapple title=Samat S.S.
+2025-05-25T11:30:15.103512Z  INFO nsf_backend::database: Failed to extract thumbnail, using empty string error=ffmpeg exited with status: exit status: 1
+2025-05-25T11:30:15.104128Z ERROR nsf_backend::api::drones: add_drone service error error=error returned from database: 1136 (21S01): Column count doesn't match value count at row 1
+2025-05-25T11:30:19.957282Z  INFO nsf_backend::api::drones: api::drones::add_drone called url=rtmp://167.99.129.124:1935/badapple title=Samat S.S.
+2025-05-25T11:30:20.717479Z  INFO nsf_backend::database: Failed to extract thumbnail, using empty string error=ffmpeg exited with status: exit status: 1
+2025-05-25T11:30:20.717971Z ERROR nsf_backend::api::drones: add_drone service error error=error returned from database: 1136 (21S01): Column count doesn't match value count at row 1
+2025-05-25T11:30:23.508797Z  INFO nsf_backend::api::drones: api::drones::add_drone called url=rtmp://167.99.129.124:1935/badapple title=Samat S.S.
+2025-05-25T11:30:24.310640Z  INFO nsf_backend::database: Failed to extract thumbnail, using empty string error=ffmpeg exited with status: exit status: 1
+2025-05-25T11:30:24.311168Z ERROR nsf_backend::api::drones: add_drone service error error=error returned from database: 1136 (21S01): Column count doesn't match value count at row 1
+2025-05-25T11:30:47.701595Z  INFO nsf_backend::api::drones: api::drones::add_drone called url=rtmp://167.99.129.124:1935/badapple title=Samat S.S.
+2025-05-25T11:30:48.468708Z  INFO nsf_backend::database: Failed to extract thumbnail, using empty string error=ffmpeg exited with status: exit status: 1
+2025-05-25T11:30:48.469184Z ERROR nsf_backend::api::drones: add_drone service error error=error returned from database: 1136 (21S01): Column count doesn't match value count at row 1
+2025-05-25T11:32:22.307508Z  INFO nsf_backend::api::drones: api::drones::add_drone called url=rtmp://167.99.129.124:1935/badapple title=Samat S.S.
+2025-05-25T11:32:23.073850Z  INFO nsf_backend::database: Failed to extract thumbnail, using empty string error=ffmpeg exited with status: exit status: 1
+2025-05-25T11:32:23.074283Z ERROR nsf_backend::api::drones: add_drone service error error=error returned from database: 1136 (21S01): Column count doesn't match value count at row 1
