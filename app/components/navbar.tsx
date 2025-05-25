@@ -9,13 +9,15 @@ export const Navbar = () => {
         <nav className="w-full min-h-[100px] items-center px-4 py-2 border-b border-default-200 bg-white dark:bg-default-100">
             <div className='grid grid-cols-3 gap-4 max-w-screen-xl mx-auto *:my-auto'>
                 <div className="flex items-center justify-center">
-                    <Image
-                        alt="Logo"
-                        className="rounded-full hover:animate-spinner-ease-spin"
-                        height={100}
-                        src="/depa.png"
-                        width={100}
-                    />
+                    <Link href='/' className="flex items-center rounded-full overflow-hidden">
+                        <Image
+                            alt="Logo"
+                            className="rounded-full hover:animate-spinner-ease-spin"
+                            height={100}
+                            src="/depa.png"
+                            width={100}
+                        />
+                    </Link>
                 </div>
                 <div className="flex justify-center">
                     <div className="w-full max-w-md">
