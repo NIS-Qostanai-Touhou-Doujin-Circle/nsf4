@@ -64,22 +64,24 @@ export default function WatchVideoPage() {
         let ws: WebSocket | null = new WebSocket(wsUrl);
         ws.onmessage = (event) => {
             try {
-                const data = JSON.parse(event.data);
+                const data = JSON.parse(event.data).data;
                 if (typeof data.latitude === 'number' && typeof data.longitude === 'number') {
                     setMapPoint([data.latitude, data.longitude]);
                 }
+            } catch (e) {
+                addToast({
+                    title: 'WebSocket error',
+                    description: (e as Error).message
+                });
+            }
+        };
+        ws.onopen = () => {
                 addToast({
                     title: 'WebSocket connected',
-                    description: 'Drone position stream is active.',
                     color: 'success',
                     severity: 'success',
                     timeout: 3000,
                 });
-            } catch (e) {
-                // Ignore malformed messages
-            }
-        };
-        ws.onopen = () => {
         };
         ws.onerror = () => {
             addToast({
