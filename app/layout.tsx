@@ -12,7 +12,7 @@ export const metadata: Metadata = {
         default: 'Not So Far',
         template: `%s - Not So Far`,
     },
-    description: 'Not So Far - A platform for translating RTPM, RTSP and geolocation data into user- and developer-friendly formats.',
+    description: 'Not So Far - Платформа для трансляции RTPM, RTSP и геолокационных данных в удобные для пользователя и разработчика форматы.',
     icons: {
         icon: '/favicon.ico',
     },

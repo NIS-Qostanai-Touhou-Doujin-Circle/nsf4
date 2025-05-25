@@ -81,7 +81,7 @@ export default function WatchVideoPage() {
         };
         ws.onopen = () => {
                 addToast({
-                    title: 'WebSocket connected',
+                    title: 'Вебсокет подключен успешно',
                     color: 'success',
                     severity: 'success',
                     timeout: 3000,
@@ -89,8 +89,8 @@ export default function WatchVideoPage() {
         };
         ws.onerror = () => {
             addToast({
-                title: 'WebSocket error',
-                description: 'Could not connect to drone position stream.',
+                title: 'Ошибка подключения к вебсокету',
+                description: 'Не удалось подключиться к вебсокету для получения данных о местоположении источника.',
                 color: 'danger',
                 severity: 'danger',
                 timeout: 3000,
@@ -129,7 +129,7 @@ export default function WatchVideoPage() {
             })
             .catch((error) => {
                 addToast({
-                    title: 'Error fetching video data',
+                    title: 'Ошибка получения данных видео',
                     description: error.message,
                     color: 'danger',
                     severity: 'danger',
@@ -146,7 +146,7 @@ export default function WatchVideoPage() {
         if (!mapPoint) {
             addToast({
                 title: 'Error',
-                description: 'Drone location is not available',
+                description: 'Локация источника не определена.',
                 color: 'danger',
                 severity: 'danger',
                 timeout: 3000,
@@ -163,7 +163,7 @@ export default function WatchVideoPage() {
                     {!videoExists && (
                         <>
                             <div className="bg-zinc-900 h-[360px] w-full" />
-                            <h1 className="text-2xl font-bold text-red-500">Video not found</h1>
+                            <h1 className="text-2xl font-bold text-red-500">Видео не найдено</h1>
                         </>
                     )}
                     {videoExists && (
@@ -176,7 +176,7 @@ export default function WatchVideoPage() {
                 </div>
                 <div className='w-full h-[400px]'>
                     <DroneMap />
-                    <Button onPress={findDrone}>Find the drone</Button>
+                    <Button onPress={findDrone}>Найти источник</Button>
                 </div>
             </div>
         </div>
