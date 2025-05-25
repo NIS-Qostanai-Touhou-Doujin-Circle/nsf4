@@ -21,6 +21,10 @@ export const DroneMap = () => {
         let map: Map | null = null;
 
         load().then((mapglAPI) => {
+            if (mapContext && mapContext.map) {
+                // If the map is already initialized, return early
+                return;
+            }
             map = new mapglAPI.Map('map-container', {
                 center: [55.31878, 25.23584],
                 zoom: 13,
@@ -35,6 +39,7 @@ export const DroneMap = () => {
         return () => {
             if (map) {
                 map.destroy();
+                setMapContext(null);
             }
         };
     }, []);
