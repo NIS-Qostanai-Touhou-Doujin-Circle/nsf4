@@ -3,13 +3,14 @@ use tracing::info;
 use chrono::Utc;
 use crate::models::{Video};
 use base64::{engine::general_purpose, Engine as _};
+use uuid::Uuid; // Added for generating ID
 
 pub async fn get_videos(pool: &Pool<MySql>) -> Result<Vec<Video>, sqlx::Error> {
     info!("database::get_videos called");
     // Using dynamic query instead of macro to avoid compile-time DB connection requirement
     let videos = query_as::<_, Video>(
         r#"
-        SELECT id, url, title, thumbnail, created_at, rtmp_url, ws_url, video_source_name
+        SELECT id, title, thumbnail, created_at, rtmp_url, ws_url
         FROM videos
         ORDER BY created_at DESC
         "#
@@ -20,6 +21,44 @@ pub async fn get_videos(pool: &Pool<MySql>) -> Result<Vec<Video>, sqlx::Error> {
     let count = videos.len();
     info!(count = count, "database::get_videos succeeded");
     Ok(videos)
+}
+
+pub async fn get_video_analytics_by_id(
+    pool: &Pool<MySql>,
+    video_id: String,
+) -> Result<Vec<(String, i32)>, sqlx::Error> {
+    info!(video_id = &video_id, "database::get_video_analytics_by_id called");
+    // Using dynamic query instead of macro to avoid compile-time DB connection requirement
+    let analytics = query_as::<_, (String, i32)>(
+        r#"
+        SELECT created_at, bitrate
+        FROM video_analytics
+        WHERE video_id = ?
+        ORDER BY created_at DESC
+        "#
+    )
+    .bind(&video_id)
+    .fetch_all(pool)
+    .await?;
+
+    info!(video_id = &video_id, count = analytics.len(), "database::get_video_analytics_by_id succeeded");
+    Ok(analytics)
+}
+
+pub async fn get_videos_count(pool: &Pool<MySql>) -> Result<usize, sqlx::Error> {
+    info!("database::get_videos_count called");
+    // Using dynamic query instead of macro to avoid compile-time DB connection requirement
+    let count: (i64,) = query_as(
+        r#"
+        SELECT COUNT(*) FROM videos
+        "#
+    )
+    .fetch_one(pool)
+    .await?;
+
+    let count = count.0 as usize;
+    info!(count = count, "database::get_videos_count succeeded");
+    Ok(count)
 }
 
 // Extracts the first frame of the video at source_url as a base64-encoded PNG
@@ -51,7 +90,7 @@ pub async fn get_video_by_id(pool: &Pool<MySql>, id: String) -> Result<Option<Vi
     // Log and borrow id to avoid moving    info!(video_id = &id, "database::get_video_by_id called");    // Using dynamic query
     let video = query_as::<_, Video>(
         r#"
-        SELECT id, url, title, thumbnail, created_at, rtmp_url, ws_url, video_source_name
+        SELECT id, title, thumbnail, created_at, rtmp_url, ws_url
         FROM videos
         WHERE id = ?
         "#
@@ -85,7 +124,7 @@ pub async fn add_video(
     };// Using dynamic query
     query(
         r#"
-        INSERT INTO videos (id, url, title, thumbnail, created_at, rtmp_url, ws_url, video_source_name)
+        INSERT INTO videos (id, title, thumbnail, created_at, rtmp_url, ws_url)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         "#
     )
@@ -96,12 +135,12 @@ pub async fn add_video(
     .bind(&created_at)
     .bind(&rtmp_url)
     .bind(&ws_url)
-    .bind(&title)  // video_source_name can be set to title for now
+    .bind(&title) 
     .execute(pool)
     .await?;// Fetch the newly inserted record
     let video = query_as::<_, Video>(
         r#"
-        SELECT id, url, title, thumbnail, created_at, rtmp_url, ws_url, video_source_name
+        SELECT id, title, thumbnail, created_at, rtmp_url, ws_url
         FROM videos
         WHERE id = ?
         "#
@@ -154,5 +193,42 @@ pub async fn update_thumbnail(
     .await?;
     
     info!(video_id = id, size_kb = size_kb, "database::update_thumbnail succeeded");
+    Ok(())
+}
+
+pub async fn add_video_analytics(
+    pool: &Pool<MySql>,
+    video_id: String,
+    bitrate: i32, // in kbit/s
+    // resolution: String, // Placeholder for future implementation
+    // frame_rate: i32,    // Placeholder for future implementation
+    // error_rate: f32,    // Placeholder for future implementation
+) -> Result<(), sqlx::Error> {
+    let id = Uuid::new_v4().to_string();
+    let created_at = Utc::now().to_rfc3339();
+
+    // Placeholder values for fields not yet parsed from ffmpeg
+    let resolution = "N/A".to_string();
+    let frame_rate = 0;
+    let error_rate = 0.0;
+
+    info!(video_id = %video_id, bitrate = %bitrate, "database::add_video_analytics called");
+
+    query(
+        r#"
+        INSERT INTO video_analytics (id, video_id, created_at, bitrate, resolution, frame_rate, error_rate)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        "#
+    )
+    .bind(id)
+    .bind(video_id)
+    .bind(created_at)
+    .bind(bitrate)
+    .bind(resolution)
+    .bind(frame_rate)
+    .bind(error_rate)
+    .execute(pool)
+    .await?;
+
     Ok(())
 }

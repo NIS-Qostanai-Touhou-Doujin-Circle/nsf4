@@ -4,7 +4,6 @@ use sqlx::FromRow;
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct Video {
     pub id: String,
-    pub url: String,
     pub title: String,
     pub thumbnail: String,
     #[sqlx(rename = "created_at")]
@@ -12,7 +11,6 @@ pub struct Video {
     pub created_at: String,
     pub rtmp_url: String,
     pub ws_url: Option<String>,
-    pub video_source_name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -31,14 +29,12 @@ pub struct AddDroneRequest {
 #[derive(Debug, Serialize)]
 pub struct AddDroneResponse {
     pub id: String,
-    pub url: String,
     pub title: String,
     pub thumbnail: String,
     #[serde(rename = "createdAt")]
     pub created_at: String,
     pub rtmp_url: String,
     pub ws_url: Option<String>,
-    pub video_source_name: String,
 }
 
 // Remove unused DeleteDroneRequest struct since it's not used

@@ -24,13 +24,31 @@ use api::{feed, drones};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing
+    // Set up file for logging
+    let file_appender = tracing_appender::rolling::daily("logs", "/app/data/logs/application.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    
+    // Initialize tracing with both console and file output
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
         ))
-        .with(tracing_subscriber::fmt::layer())
+        .with(tracing_subscriber::fmt::layer()
+            .with_writer(std::io::stdout)
+            .with_ansi(true))
+        .with(tracing_subscriber::fmt::layer()
+            .with_writer(non_blocking.clone())
+            .with_ansi(false)
+            .with_writer(non_blocking)
+            .event_format(
+                tracing_subscriber::fmt::format()
+                    .with_target(true)
+                    .compact()
+            ))
         .init();
     
+    // Store _guard in application state or keep it in a static to prevent premature flush
+    let _tracing_guard = _guard;
     // Load configuration from environment variables
     let config = config::Config::from_env()?;
     // Log loaded configuration for debugging
@@ -83,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!(count = videos.len(), "Existing drones found");
     for video in videos {
         let destination = format!("{}/{}", app_state.config.media_server_url, video.id);
-        let added = rtmp::add_rtmp_relay(video.id.clone(), video.rtmp_url.clone(), destination.clone());
+        let added = rtmp::add_rtmp_relay(video.id.clone(), video.rtmp_url.clone(), destination.clone(), app_state.db.clone());
         tracing::info!(video_id = %video.id, added = %added, destination = %destination, rtmp_url = %video.rtmp_url, "Initialized RTMP relay for drone");
     }
       // Инициализируем WebSocket подключения к дронам
@@ -103,8 +121,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
-        .allow_headers(Any);    
-      // Build application router
+        .allow_headers(Any);    // Build application router
     let app = Router::new()
         .route("/api/feed", get(feed::get_feed))
         .route("/api/drones", post(drones::add_drone))
@@ -112,10 +129,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             get(drones::get_drone_by_id)
             .delete(drones::delete_drone)
         )
+        .route("/api/rtmp-count", get(feed::get_feed_count))
+        .route("/api/ws-count", get(websocket::get_ws_count))
         .route("/api/drones/{id}/revive", post(drones::revive_drone_connection))
         .route("/api/drones/{id}/status", get(drones::get_connection_status))
+        .route("/api/analytics/{id}", get(drones::get_analytics_by_id))
+        .route("/api/debug/connections", get(drones::get_connection_debug_info))
         .merge(websocket::router()) // Используем новый WebSocket роутер
-        .layer(Extension(app_state))
+        .layer(Extension(app_state.clone()))
         .layer(cors);
       // Start HTTP server and RTMP server
     let http_addr = SocketAddr::from(([0, 0, 0, 0], config.port));

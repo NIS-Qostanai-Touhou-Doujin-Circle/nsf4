@@ -5,7 +5,7 @@ use axum::{
 };
 use std::sync::Arc;
 
-use crate::models::{AddDroneRequest, AddDroneResponse, DeleteDroneResponse, Video};
+use crate::{models::{AddDroneRequest, AddDroneResponse, DeleteDroneResponse, Video}, rtmp};
 use crate::services::{self, AppState};
 
 pub async fn add_drone(
@@ -43,13 +43,11 @@ pub async fn add_drone(
         tracing::info!(drone_id = %drone_id, "No WebSocket URL provided, skipping WebSocket connection");
     }let response = AddDroneResponse {
         id: video.id,
-        url: video.url,
         title: video.title,
         thumbnail: video.thumbnail,
         created_at: video.created_at,
         rtmp_url: video.rtmp_url,
         ws_url: video.ws_url,
-        video_source_name: video.video_source_name,
     };
     
     Ok(Json(response))
@@ -115,6 +113,21 @@ pub async fn revive_drone_connection(
     }
 }
 
+pub async fn get_analytics_by_id(
+    Extension(state): Extension<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    tracing::info!(drone_id = %id, "api::drones::get_analytics_by_id called");
+    
+    match rtmp::get_drone_analytics_by_id(id.as_str(), &state.db).await {
+        Ok(analytics) => Ok(Json(analytics.into())),
+        Err(e) => {
+            tracing::error!(drone_id = %id, error = %e, "get_analytics_by_id service error");
+            Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+        }
+    }
+}
+
 pub async fn get_connection_status(
     Extension(_state): Extension<Arc<AppState>>,
     Path(id): Path<String>,
@@ -129,6 +142,53 @@ pub async fn get_connection_status(
         "is_connected": is_connected,
         "active_connections": active_connections.len(),
         "all_active_connections": active_connections
+    });
+    
+    Ok(Json(response))
+}
+
+pub async fn get_connection_debug_info(
+    Extension(state): Extension<Arc<AppState>>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    tracing::info!("api::drones::get_connection_debug_info called");
+    
+    // Get all drones from database
+    let drones = match crate::database::get_videos(&state.db).await {
+        Ok(drones) => drones,
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to get drones from database");
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
+        }
+    };
+    
+    let active_connections = services::get_active_drone_connections();
+    
+    // Create detailed connection info for each drone
+    let mut drone_info = Vec::new();
+    for drone in drones {
+        let is_connected = services::get_drone_connection_status(&drone.id);
+        let has_ws_url = drone.ws_url.as_ref().map(|url| !url.trim().is_empty()).unwrap_or(false);
+        
+        // Get latest GPS data
+        let latest_gps = services::get_drone_gps_data(state.clone(), drone.id.clone()).await.ok().flatten();
+        
+        drone_info.push(serde_json::json!({
+            "drone_id": drone.id,
+            "title": drone.title,
+            "ws_url": drone.ws_url,
+            "has_ws_url": has_ws_url,
+            "is_connected": is_connected,
+            "latest_gps": latest_gps,
+            "created_at": drone.created_at
+        }));
+    }
+    
+    let response = serde_json::json!({
+        "total_drones": drone_info.len(),
+        "active_connections_count": active_connections.len(),
+        "active_connection_ids": active_connections,
+        "drones": drone_info,
+        "timestamp": chrono::Utc::now().to_rfc3339()
     });
     
     Ok(Json(response))

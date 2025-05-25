@@ -117,20 +117,32 @@ pub fn connect_to_drone(
                     },
                     Err(e) => {
                         error!(drone_id = %drone_id, error = %e, "Failed to parse message from drone");
-                    }
-                }
+                    }                }
             },
             Ok(Message::Close(reason)) => {
                 info!(drone_id = %drone_id, ?reason, "Drone connection closed");
+                
+                // Remove connection from manager when closed
+                {
+                    let mut connection_manager = super::DRONE_CONNECTIONS.lock().unwrap();
+                    connection_manager.remove_connection(&drone_id);
+                }
+                
                 break;
             },
             Ok(_) => {}, // Игнорируем другие типы сообщений
             Err(e) => {
                 error!(drone_id = %drone_id, error = %e, "Error reading from drone WebSocket");
+                
+                // Remove current connection from manager before reconnecting
+                {
+                    let mut connection_manager = super::DRONE_CONNECTIONS.lock().unwrap();
+                    connection_manager.remove_connection(&drone_id);
+                }
+                
                 tokio::time::sleep(Duration::from_secs(5)).await;
                 return connect_to_drone(state, drone_id, ws_url).await;
-            }
-        }
+            }        }
     }
     
     Ok(())
@@ -144,10 +156,12 @@ pub async fn start_drone_clients(state: Arc<AppState>) -> Result<(), Box<dyn Std
         Ok(drones) => drones,
         Err(e) => {
             error!(error = %e, "Failed to get drones list");
-            return Err(Box::new(e) as Box<dyn StdError + Send + Sync>);
-        }
-    };    // Запускаем клиент для каждого дрона
-    for drone in drones {        // Используем сохраненный ws_url если он есть, иначе пропускаем дрон
+            return Err(Box::new(e) as Box<dyn StdError + Send + Sync>);        }
+    };
+    
+    // Запускаем клиент для каждого дрона
+    for drone in drones {
+        // Используем сохраненный ws_url если он есть, иначе пропускаем дрон
         if let Some(ws_url) = drone.ws_url.as_ref().filter(|url| !url.trim().is_empty()) {
             let state_clone = state.clone();
             let drone_id = drone.id.clone();

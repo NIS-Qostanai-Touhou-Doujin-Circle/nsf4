@@ -24,3 +24,5 @@ uuid = { version = "1.17.0", features = ["v4"] }
 websocket = "0.27.1"
 base64 = "0.22.1"
 redis = { version = "0.31.0", features = ["tokio-comp", "json"] }
+regex = "1.11.1"
+tracing-appender = "0.2.3"

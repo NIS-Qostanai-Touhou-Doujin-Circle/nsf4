@@ -1,7 +1,8 @@
 -- Create videos table
 CREATE TABLE IF NOT EXISTS videos (
     id VARCHAR(36) PRIMARY KEY,
-    url VARCHAR(255) NOT NULL,
+    rtmp_url VARCHAR(255) NULL,
+    ws_url VARCHAR(255) NULL,
     title LONGTEXT NOT NULL,
     thumbnail LONGTEXT NOT NULL,
     created_at VARCHAR(50) NOT NULL

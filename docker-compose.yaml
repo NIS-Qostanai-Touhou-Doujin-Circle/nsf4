@@ -12,8 +12,6 @@ services:
       - backend    
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://backend:5123
-      - NEXT_PUBLIC_MEDIA_SERVER_URL=http://conv:6210
     restart: unless-stopped  
     
   conv:
@@ -46,6 +44,8 @@ services:
       - SCREENSHOT_QUALITY=80
       - RUST_LOG=info
       - REDIS_URL=redis://:redis_password@redis:6379/0
+    volumes:
+      - ./backend/logs/:/app/data/logs
     restart: always
 
   media:
@@ -54,9 +54,6 @@ services:
     ports:
       - "1935:1935"
       - "8554:8554"
-    environment:
-      - RTMP_PORT=1935
-      - RTSP_PORT=8554
     restart: always
   db:
     container_name: nsf_db
