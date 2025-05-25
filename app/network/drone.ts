@@ -12,7 +12,7 @@ export async function addDrone({ url, title, ws }: { url: string; title: string;
     });
 
     if (!response.ok) {
-        throw new Error('Failed to add drone');
+        throw new Error(`Failed to add drone: ${response.statusText}`);
     }
 
     return response.json();
