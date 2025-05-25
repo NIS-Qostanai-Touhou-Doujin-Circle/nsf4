@@ -5,16 +5,14 @@ import clsx from 'clsx';
 
 import { Providers } from './providers';
 
-import { siteConfig } from '@/config/site';
-import { fontSans } from '@/config/fonts';
 import { Navbar } from '@/app/components/navbar';
 
 export const metadata: Metadata = {
     title: {
-        default: siteConfig.name,
-        template: `%s - ${siteConfig.name}`,
+        default: 'Not So Far',
+        template: `%s - Not So Far`,
     },
-    description: siteConfig.description,
+    description: 'Not So Far - A platform for translating RTPM, RTSP and geolocation data into user- and developer-friendly formats.',
     icons: {
         icon: '/favicon.ico',
     },
@@ -34,7 +32,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <body
                 className={clsx(
                     'min-h-screen bg-background font-sans antialiased',
-                    fontSans.variable,
                 )}
             >
                 <Providers themeProps={{ attribute: 'class', defaultTheme: 'dark' }}>
